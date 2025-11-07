@@ -305,17 +305,21 @@ defmodule D3Ex.Data do
       # Sort by function
       D3Ex.Data.sort_by(data, fn item -> item.score * item.weight end)
   """
-  def sort_by(data, field, direction \\ :asc) when is_atom(field) do
+  def sort_by(data, field) when is_atom(field) do
+    sort_by(data, field, :asc)
+  end
+
+  def sort_by(data, fun) when is_function(fun) do
+    Enum.sort_by(data, fun)
+  end
+
+  def sort_by(data, field, direction) when is_atom(field) do
     sorted = Enum.sort_by(data, &Map.get(&1, field))
 
     case direction do
       :asc -> sorted
       :desc -> Enum.reverse(sorted)
     end
-  end
-
-  def sort_by(data, fun) when is_function(fun) do
-    Enum.sort_by(data, fun)
   end
 
   @doc """

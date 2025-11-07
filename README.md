@@ -82,6 +82,41 @@ end
 
 ## Quick Start
 
+### Ergonomic API with Helpers (NEW!)
+
+D3Ex provides helper modules inspired by VegaLite.ex for data transformation and configuration:
+
+```elixir
+# Transform data with pipeline
+chart_data =
+  raw_sales
+  |> D3Ex.Data.filter(&(&1.active))
+  |> D3Ex.Data.group_by(:category)
+  |> D3Ex.Data.aggregate(:sum, :revenue)
+  |> D3Ex.Data.sort_by(:revenue, :desc)
+  |> D3Ex.Data.limit(10)
+
+# Build configuration with helpers
+config =
+  D3Ex.Config.network_graph(
+    size: {1000, 800},
+    forces: [charge: -400, link: [distance: 150]],
+    theme: :dark,
+    interactions: [drag: true, zoom: true]
+  )
+
+# Use in component
+<.bar_chart
+  id="top-sales"
+  data={chart_data}
+  x_key={:category}
+  y_key={:sum_revenue}
+  config={config}
+/>
+```
+
+See [Using Helpers Example](examples/using_helpers_live.ex) for complete examples.
+
 ### Network Graph
 
 ```elixir

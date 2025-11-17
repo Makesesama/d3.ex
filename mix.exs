@@ -10,6 +10,7 @@ defmodule D3Ex.MixProject do
       version: @version,
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
@@ -31,8 +32,9 @@ defmodule D3Ex.MixProject do
 
   defp deps do
     [
-      {:phoenix_live_view, "~> 0.20.0"},
+      {:phoenix_live_view, "~> 1.1.0"},
       {:jason, "~> 1.4"},
+      {:lazy_html, ">= 0.0.0", only: :test},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
   end

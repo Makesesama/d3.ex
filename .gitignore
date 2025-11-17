@@ -35,7 +35,6 @@ d3_ex-*.tar
 
 # Node modules for JavaScript assets
 /assets/node_modules/
-/priv/static/
 
 # Environment variables
 .env

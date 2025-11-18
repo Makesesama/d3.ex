@@ -310,9 +310,7 @@ defmodule D3Ex.ConfigTest do
 
     test "accepts custom breakpoints" do
       config =
-        D3Ex.Config.responsive(
-          breakpoints: %{small: 480, medium: 960, large: 1440}
-        )
+        D3Ex.Config.responsive(breakpoints: %{small: 480, medium: 960, large: 1440})
 
       assert config.breakpoints.small == 480
       assert config.breakpoints.medium == 960

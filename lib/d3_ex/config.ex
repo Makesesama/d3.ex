@@ -78,7 +78,9 @@ defmodule D3Ex.Config do
   end
 
   defp normalize_link_force(nil), do: %{distance: 100, strength: 1}
-  defp normalize_link_force(distance) when is_number(distance), do: %{distance: distance, strength: 1}
+
+  defp normalize_link_force(distance) when is_number(distance),
+    do: %{distance: distance, strength: 1}
 
   defp normalize_link_force(opts) when is_list(opts) do
     %{
@@ -89,7 +91,9 @@ defmodule D3Ex.Config do
   end
 
   defp normalize_collision_force(nil), do: %{radius: 15, strength: 1}
-  defp normalize_collision_force(radius) when is_number(radius), do: %{radius: radius, strength: 1}
+
+  defp normalize_collision_force(radius) when is_number(radius),
+    do: %{radius: radius, strength: 1}
 
   defp normalize_collision_force(opts) when is_list(opts) do
     %{

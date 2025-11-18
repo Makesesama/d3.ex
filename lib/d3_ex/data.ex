@@ -140,10 +140,17 @@ defmodule D3Ex.Data do
 
     Enum.flat_map(nodes, fn node ->
       case links_from_fn.(node) do
-        nil -> []
-        [] -> []
-        link when is_map(link) -> [normalize_link(link, link_source_key, link_target_key)]
-        links when is_list(links) -> Enum.map(links, &normalize_link(&1, link_source_key, link_target_key))
+        nil ->
+          []
+
+        [] ->
+          []
+
+        link when is_map(link) ->
+          [normalize_link(link, link_source_key, link_target_key)]
+
+        links when is_list(links) ->
+          Enum.map(links, &normalize_link(&1, link_source_key, link_target_key))
       end
     end)
   end

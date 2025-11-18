@@ -52,10 +52,18 @@ export const D3Hook = {
    */
   sendEvent(eventName, payload, throttle = 0) {
     const eventInput = this.el.querySelector(`input[name="${eventName}"]`);
-    if (!eventInput) return;
+    if (!eventInput) {
+      console.warn(`D3Ex: No input found for event "${eventName}"`);
+      return;
+    }
 
     const eventHandler = eventInput.value;
-    if (!eventHandler) return;
+    if (!eventHandler) {
+      console.warn(`D3Ex: No event handler name set for "${eventName}"`);
+      return;
+    }
+
+    console.log(`D3Ex: Sending event "${eventHandler}" with payload:`, payload);
 
     if (throttle > 0) {
       if (this.throttleTimers && this.throttleTimers[eventName]) {
@@ -419,7 +427,11 @@ export const D3BarChart = {
       .attr('fill', d => color_key ? this.colorScale(d[color_key]) : 'steelblue')
       .style('cursor', 'pointer');
 
-    barsEnter.merge(bars)
+    // Merge enter and update selections
+    const barsMerged = barsEnter.merge(bars);
+
+    // Attach event handlers to the merged selection (before transition)
+    barsMerged
       .on('click', (event, d) => {
         this.sendEvent('on_bar_click', d);
       })
@@ -429,7 +441,10 @@ export const D3BarChart = {
       })
       .on('mouseout', (event, d) => {
         d3.select(event.currentTarget).attr('opacity', 1);
-      })
+      });
+
+    // Apply transitions
+    barsMerged
       .transition()
       .duration(animation_duration)
       .attr('x', d => this.xScale(d[x_key]))
@@ -647,7 +662,11 @@ export const D3LineChart = {
         .attr('stroke-width', 1.5)
         .style('cursor', 'pointer');
 
-      pointsEnter.merge(points)
+      // Merge enter and update selections
+      const pointsMerged = pointsEnter.merge(points);
+
+      // Attach event handlers to the merged selection (before transition)
+      pointsMerged
         .on('click', (event, d) => {
           this.sendEvent('on_point_click', d);
         })
@@ -662,7 +681,10 @@ export const D3LineChart = {
             .transition()
             .duration(150)
             .attr('r', this.config.point_radius);
-        })
+        });
+
+      // Apply position/color transitions
+      pointsMerged
         .transition()
         .duration(animation_duration)
         .attr('cx', d => this.xScale(d[x_key]))

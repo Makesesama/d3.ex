@@ -72,6 +72,14 @@ defmodule D3Ex do
   - `D3Ex.Components.ScatterPlot` - Scatter plots with brushing
 
   See individual component documentation for detailed options.
+
+  ## Setup
+
+  To include D3.js in your application, add to your root layout:
+
+      <D3Ex.Helpers.d3_script />
+
+  This loads the bundled D3.js library from your server.
   """
 
   @doc """

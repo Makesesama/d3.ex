@@ -63,24 +63,24 @@ defmodule D3Ex.Examples.UsingHelpersLive do
         <div class="mt-4 p-4 bg-gray-50 rounded">
           <h3 class="font-semibold mb-2">Code:</h3>
           <pre class="text-xs overflow-x-auto"><code>
-# Transform data
-graph = D3Ex.Data.to_graph(
-  nodes: users,
-  node_id: :id,
-  node_label: :name,
-  node_group: :department,
-  links: relationships,
-  link_source: :from_id,
-  link_target: :to_id
-)
+    # Transform data
+    graph = D3Ex.Data.to_graph(
+    nodes: users,
+    node_id: :id,
+    node_label: :name,
+    node_group: :department,
+    links: relationships,
+    link_source: :from_id,
+    link_target: :to_id
+    )
 
-# Build config
-config = D3Ex.Config.network_graph(
-  size: {900, 500},
-  forces: [charge: -400, link: [distance: 120]],
-  theme: :dark,
-  node_radius: 12
-)
+    # Build config
+    config = D3Ex.Config.network_graph(
+    size: {900, 500},
+    forces: [charge: -400, link: [distance: 120]],
+    theme: :dark,
+    node_radius: 12
+    )
           </code></pre>
         </div>
       </section>
@@ -104,22 +104,22 @@ config = D3Ex.Config.network_graph(
         <div class="mt-4 p-4 bg-gray-50 rounded">
           <h3 class="font-semibold mb-2">Code:</h3>
           <pre class="text-xs overflow-x-auto"><code>
-# Data transformation pipeline
-top_categories =
-  raw_sales
-  |> D3Ex.Data.filter(&(&1.active))
-  |> D3Ex.Data.group_by(:category)
-  |> D3Ex.Data.aggregate(:sum, :revenue)
-  |> D3Ex.Data.sort_by(:sum_revenue, :desc)
-  |> D3Ex.Data.limit(10)
+    # Data transformation pipeline
+    top_categories =
+    raw_sales
+    |> D3Ex.Data.filter(&(&1.active))
+    |> D3Ex.Data.group_by(:category)
+    |> D3Ex.Data.aggregate(:sum, :revenue)
+    |> D3Ex.Data.sort_by(:sum_revenue, :desc)
+    |> D3Ex.Data.limit(10)
 
-# Config with helpers
-config = D3Ex.Config.bar_chart(
-  size: {700, 400},
-  theme: :corporate,
-  bar_padding: 0.2,
-  show_values: true
-)
+    # Config with helpers
+    config = D3Ex.Config.bar_chart(
+    size: {700, 400},
+    theme: :corporate,
+    bar_padding: 0.2,
+    show_values: true
+    )
           </code></pre>
         </div>
       </section>
@@ -142,25 +142,25 @@ config = D3Ex.Config.bar_chart(
         <div class="mt-4 p-4 bg-gray-50 rounded">
           <h3 class="font-semibold mb-2">Code:</h3>
           <pre class="text-xs overflow-x-auto"><code>
-# Add computed fields
-sales_with_metrics =
-  monthly_sales
-  |> D3Ex.Data.add_field(:percentage, fn item, all_data ->
+    # Add computed fields
+    sales_with_metrics =
+    monthly_sales
+    |> D3Ex.Data.add_field(:percentage, fn item, all_data ->
     total = Enum.sum(Enum.map(all_data, & &1.revenue))
     item.revenue / total * 100
-  end)
-  |> D3Ex.Data.add_field(:rank, fn _item, _all, index ->
+    end)
+    |> D3Ex.Data.add_field(:rank, fn _item, _all, index ->
     index + 1
-  end)
+    end)
 
-# Config composition
-config =
-  D3Ex.Config.theme(:vibrant)
-  |> D3Ex.Config.merge(D3Ex.Config.line_chart(
+    # Config composition
+    config =
+    D3Ex.Config.theme(:vibrant)
+    |> D3Ex.Config.merge(D3Ex.Config.line_chart(
     size: {700, 300},
     curve: :monotone,
     show_area: true
-  ))
+    ))
           </code></pre>
         </div>
       </section>
@@ -232,7 +232,7 @@ config =
     # Use data transformation pipeline
     top_categories =
       socket.assigns.raw_sales
-      |> D3Ex.Data.filter(&(&1.active))
+      |> D3Ex.Data.filter(& &1.active)
       |> D3Ex.Data.group_by(:category)
       |> D3Ex.Data.aggregate(:sum, :revenue)
       |> D3Ex.Data.sort_by(:sum_revenue, :desc)

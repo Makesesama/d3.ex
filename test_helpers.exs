@@ -30,7 +30,7 @@ defmodule SimpleTest do
       %{name: "Charlie", active: true, score: 95}
     ]
 
-    result = D3Ex.Data.filter(data, &(&1.active))
+    result = D3Ex.Data.filter(data, & &1.active)
     assert length(result) == 2, "Filter should return 2 active items"
     assert Enum.all?(result, & &1.active), "All results should be active"
 
@@ -86,13 +86,14 @@ defmodule SimpleTest do
       %{source: 1, target: 2, weight: 5}
     ]
 
-    result = D3Ex.Data.to_graph(
-      nodes: nodes,
-      links: links,
-      node_id: :id,
-      node_label: :name,
-      node_group: :dept
-    )
+    result =
+      D3Ex.Data.to_graph(
+        nodes: nodes,
+        links: links,
+        node_id: :id,
+        node_label: :name,
+        node_group: :dept
+      )
 
     assert length(result.nodes) == 2, "Should have 2 nodes"
     assert length(result.links) == 1, "Should have 1 link"
@@ -120,7 +121,7 @@ defmodule SimpleTest do
 
     result =
       sales
-      |> D3Ex.Data.filter(&(&1.active))
+      |> D3Ex.Data.filter(& &1.active)
       |> D3Ex.Data.group_by(:category)
       |> D3Ex.Data.aggregate(:sum, :amount)
       |> D3Ex.Data.sort_by(:sum_amount, :desc)
@@ -155,11 +156,12 @@ defmodule SimpleTest do
   end
 
   defp test_config_network_graph do
-    config = D3Ex.Config.network_graph(
-      size: {1000, 800},
-      forces: [charge: -400],
-      theme: :dark
-    )
+    config =
+      D3Ex.Config.network_graph(
+        size: {1000, 800},
+        forces: [charge: -400],
+        theme: :dark
+      )
 
     assert config.width == 1000, "Width should be 1000"
     assert config.height == 800, "Height should be 800"

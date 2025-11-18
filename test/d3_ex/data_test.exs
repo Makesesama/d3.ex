@@ -85,7 +85,7 @@ defmodule D3Ex.DataTest do
         %{name: "Charlie", active: true}
       ]
 
-      result = D3Ex.Data.filter(data, &(&1.active))
+      result = D3Ex.Data.filter(data, & &1.active)
 
       assert length(result) == 2
       assert Enum.all?(result, & &1.active)
@@ -100,7 +100,7 @@ defmodule D3Ex.DataTest do
 
       result =
         data
-        |> D3Ex.Data.filter(&(&1.active))
+        |> D3Ex.Data.filter(& &1.active)
         |> D3Ex.Data.filter(&(&1.score > 80))
 
       assert result == [%{name: "Alice", active: true, score: 90}]
@@ -129,9 +129,10 @@ defmodule D3Ex.DataTest do
         %{name: "Charlie", score: 85}
       ]
 
-      result = D3Ex.Data.group_by(data, fn item ->
-        if item.score >= 80, do: :high, else: :low
-      end)
+      result =
+        D3Ex.Data.group_by(data, fn item ->
+          if item.score >= 80, do: :high, else: :low
+        end)
 
       assert map_size(result) == 2
       assert length(result[:high]) == 2
@@ -327,7 +328,7 @@ defmodule D3Ex.DataTest do
       # Transform with pipeline
       result =
         sales
-        |> D3Ex.Data.filter(&(&1.active))
+        |> D3Ex.Data.filter(& &1.active)
         |> D3Ex.Data.group_by(:category)
         |> D3Ex.Data.aggregate(:sum, :amount)
         |> D3Ex.Data.sort_by(:sum_amount, :desc)

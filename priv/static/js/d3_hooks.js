@@ -113,11 +113,48 @@ export const D3Hook = {
 };
 
 /**
- * D3 Network Graph Hook
+ * Build a LiveView hook on top of the D3Ex lifecycle.
  *
- * Force-directed network graph with interactive nodes and links.
+ * Handles the boilerplate every D3 hook needs: D3 readiness check, config
+ * parsing into `this.config`, id-scoped data event subscription, and cleanup
+ * on destroy. Author supplies just the D3-specific callbacks.
+ *
+ * Spread the result into your hook object and add component-specific methods
+ * (initChart, renderChart, etc.) alongside it.
+ *
+ * @param {object} opts
+ * @param {function} opts.onMount   Called after `this.config` is parsed. Read
+ *                                   any initial data here (`this.getData()`,
+ *                                   `this.getLinks()`, etc.) and initialize
+ *                                   the visualization. `this` is the hook.
+ * @param {function} [opts.onUpdated] Called from LiveView `updated()`. Use
+ *                                    only for scalar `data-*` attribute
+ *                                    changes (e.g. selection). Data should
+ *                                    flow through `events` / `D3Ex.Live.*`.
+ * @param {function} [opts.onDestroy] Extra teardown. `this.cleanup()` runs
+ *                                    automatically afterward.
+ * @param {object}   [opts.events]   Map of op → handler called as a `this`-
+ *                                   bound method when `${this.el.id}:${op}`
+ *                                   fires (see `D3Ex.Live`).
+ *
+ * @example
+ *   export const D3PieChart = {
+ *     ...createD3Hook({
+ *       onMount() {
+ *         this.data = this.getData();
+ *         this.initChart();
+ *       },
+ *       events: {
+ *         set_data({data}) { this.data = data; this.renderChart(); },
+ *       },
+ *     }),
+ *     initChart() { ... },
+ *     renderChart() { ... },
+ *   };
  */
-export const D3NetworkGraph = {
+export const createD3Hook = ({ onMount, onUpdated, onDestroy, events } = {}) => ({
+  ...D3Hook,
+
   mounted() {
     if (!window.d3) {
       console.error('D3.js is not loaded. Please include D3.js in your application.');
@@ -125,43 +162,55 @@ export const D3NetworkGraph = {
     }
 
     this.config = this.getConfig();
-    this.nodes = this.getData();
-    this.links = this.getLinks();
-    this.selected = this.getSelected();
+    onMount?.call(this);
+    if (events) this.bindDataEvents(events);
+  },
 
-    this.initGraph();
+  updated() {
+    onUpdated?.call(this);
+  },
 
-    // Id-scoped streaming events (server-side: D3Ex.Live.*)
-    this.bindDataEvents({
-      set_data: ({data}) => {
+  destroyed() {
+    onDestroy?.call(this);
+    this.cleanup();
+  },
+});
+
+/**
+ * D3 Network Graph Hook
+ *
+ * Force-directed network graph with interactive nodes and links.
+ */
+export const D3NetworkGraph = {
+  ...createD3Hook({
+    onMount() {
+      this.nodes = this.getData();
+      this.links = this.getLinks();
+      this.selected = this.getSelected();
+      this.initGraph();
+    },
+    onUpdated() {
+      // Only the `data-selected` scalar still updates via attribute diff;
+      // node/link data flows through D3Ex.Live id-scoped events.
+      const newSelected = this.getSelected();
+      if (newSelected !== this.selected) {
+        this.selected = newSelected;
+        this.updateSelection();
+      }
+    },
+    events: {
+      set_data({data}) {
         this.nodes = data.nodes || [];
         this.links = data.links || [];
         this.updateGraph();
       },
-      add_node: ({node}) => this.addNode(node),
-      remove_node: ({id}) => this.removeNode(id),
-      update_node: ({id, changes}) => this.updateNode(id, changes),
-      add_link: ({link}) => this.addLink(link),
-      remove_link: ({source, target}) => this.removeLink(source, target),
-    });
-  },
-
-  updated() {
-    // Data flows exclusively through D3Ex.Live id-scoped events after mount.
-    // Only the `data-selected` scalar still updates via attribute diff.
-    const newSelected = this.getSelected();
-
-    if (newSelected !== this.selected) {
-      this.selected = newSelected;
-      this.updateSelection();
-    }
-  },
-
-  destroyed() {
-    this.cleanup();
-  },
-
-  ...D3Hook,
+      add_node({node})              { this.addNode(node); },
+      remove_node({id})             { this.removeNode(id); },
+      update_node({id, changes})    { this.updateNode(id, changes); },
+      add_link({link})              { this.addLink(link); },
+      remove_link({source, target}) { this.removeLink(source, target); },
+    },
+  }),
 
   initGraph() {
     const d3 = window.d3;
@@ -348,25 +397,18 @@ export const D3NetworkGraph = {
  * Animated bar chart with click and hover interactions.
  */
 export const D3BarChart = {
-  mounted() {
-    if (!window.d3) {
-      console.error('D3.js is not loaded. Please include D3.js in your application.');
-      return;
-    }
-
-    this.config = this.getConfig();
-    this.data = this.getData();
-
-    this.initChart();
-
-    // Id-scoped streaming events (server-side: D3Ex.Live.*)
-    this.bindDataEvents({
-      set_data: ({data}) => { this.data = data; this.updateChart(); },
-      append: ({items}) => { this.data = this.data.concat(items); this.updateChart(); },
-      patch: ({changes}) => { this.applyPatch(changes); this.updateChart(); },
-      remove: ({ids}) => { this.applyRemove(ids); this.updateChart(); },
-    });
-  },
+  ...createD3Hook({
+    onMount() {
+      this.data = this.getData();
+      this.initChart();
+    },
+    events: {
+      set_data({data})   { this.data = data;                  this.updateChart(); },
+      append({items})    { this.data = this.data.concat(items); this.updateChart(); },
+      patch({changes})   { this.applyPatch(changes);          this.updateChart(); },
+      remove({ids})      { this.applyRemove(ids);             this.updateChart(); },
+    },
+  }),
 
   applyPatch(changes) {
     const idKey = this.config.x_key;
@@ -381,18 +423,6 @@ export const D3BarChart = {
     const drop = new Set(ids);
     this.data = this.data.filter(d => !drop.has(d[idKey]));
   },
-
-  updated() {
-    // Data flows exclusively through D3Ex.Live id-scoped events after mount.
-    // Config and attribute changes are not currently mirrored — passing new
-    // config requires a remount today; revisit if a real use case appears.
-  },
-
-  destroyed() {
-    this.cleanup();
-  },
-
-  ...D3Hook,
 
   initChart() {
     const d3 = window.d3;
@@ -504,25 +534,18 @@ export const D3BarChart = {
  * Multi-line chart with interactive points and tooltips.
  */
 export const D3LineChart = {
-  mounted() {
-    if (!window.d3) {
-      console.error('D3.js is not loaded. Please include D3.js in your application.');
-      return;
-    }
-
-    this.config = this.getConfig();
-    this.data = this.getData();
-
-    this.initChart();
-
-    // Id-scoped streaming events (server-side: D3Ex.Live.*)
-    this.bindDataEvents({
-      set_data: ({data}) => { this.data = data; this.updateChart(); },
-      append: ({items}) => { this.data = this.data.concat(items); this.updateChart(); },
-      patch: ({changes}) => { this.applyPatch(changes); this.updateChart(); },
-      remove: ({ids}) => { this.applyRemove(ids); this.updateChart(); },
-    });
-  },
+  ...createD3Hook({
+    onMount() {
+      this.data = this.getData();
+      this.initChart();
+    },
+    events: {
+      set_data({data})   { this.data = data;                  this.updateChart(); },
+      append({items})    { this.data = this.data.concat(items); this.updateChart(); },
+      patch({changes})   { this.applyPatch(changes);          this.updateChart(); },
+      remove({ids})      { this.applyRemove(ids);             this.updateChart(); },
+    },
+  }),
 
   applyPatch(changes) {
     const idKey = this.config.x_key;
@@ -537,16 +560,6 @@ export const D3LineChart = {
     const drop = new Set(ids);
     this.data = this.data.filter(d => !drop.has(d[idKey]));
   },
-
-  updated() {
-    // Data flows exclusively through D3Ex.Live id-scoped events after mount.
-  },
-
-  destroyed() {
-    this.cleanup();
-  },
-
-  ...D3Hook,
 
   initChart() {
     const d3 = window.d3;
@@ -770,42 +783,27 @@ export const D3LineChart = {
  * attributes are strings, coerced via `Number()`).
  */
 export const D3Stream = {
-  mounted() {
-    if (!window.d3) {
-      console.error('D3.js is not loaded. Please include D3.js in your application.');
-      return;
-    }
+  ...createD3Hook({
+    onMount() {
+      this.data = this.readFeed();
+      this.initChart();
 
-    this.config = this.getConfig();
-    this.data = this.readFeed();
-    this.initChart();
-    // renderChart is invoked at the end of initChart already.
-
-    this.pendingFlush = false;
-    this.observer = new MutationObserver(() => this.scheduleFlush());
-    const feed = this.el.querySelector('[data-stream-feed]');
-    if (feed) {
-      this.observer.observe(feed, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['data-x', 'data-y', 'data-series']
-      });
-    }
-  },
-
-  updated() {
-    // Outer wrapper attributes may change (e.g. data-config). The feed is
-    // its own phx-update="stream" subtree and the SVG sits inside a
-    // phx-update="ignore" sibling, so there's nothing to do here.
-  },
-
-  destroyed() {
-    if (this.observer) this.observer.disconnect();
-    this.cleanup();
-  },
-
-  ...D3Hook,
+      this.pendingFlush = false;
+      this.observer = new MutationObserver(() => this.scheduleFlush());
+      const feed = this.el.querySelector('[data-stream-feed]');
+      if (feed) {
+        this.observer.observe(feed, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['data-x', 'data-y', 'data-series']
+        });
+      }
+    },
+    onDestroy() {
+      if (this.observer) this.observer.disconnect();
+    },
+  }),
 
   readFeed() {
     const { x_key, y_key, series_key } = this.config;
@@ -1003,6 +1001,7 @@ export const D3Stream = {
 // Export default object for convenience
 export default {
   D3Hook,
+  createD3Hook,
   D3NetworkGraph,
   D3BarChart,
   D3LineChart,

@@ -364,34 +364,24 @@ end
 
 ### 2. Create a JavaScript Hook
 
-Create `assets/js/hooks/pie_chart.js`:
+Create `assets/js/hooks/pie_chart.js`. The `createD3Hook` factory takes
+care of the D3 readiness check, config parsing, id-scoped event wiring,
+and cleanup — you only write the D3 code.
 
 ```javascript
-import { D3Hook } from "../../deps/d3_ex/priv/static/js/d3_hooks.js";
+import { createD3Hook } from "../../deps/d3_ex/priv/static/js/d3_hooks.js";
 
 export const D3PieChart = {
-  mounted() {
-    if (!window.d3) {
-      console.error('D3.js is not loaded');
-      return;
-    }
-
-    this.config = this.getConfig();
-    this.data = this.getData();
-    this.initChart();
-  },
-
-  updated() {
-    this.data = this.getData();
-    this.updateChart();
-  },
-
-  destroyed() {
-    this.cleanup();
-  },
-
-  // Inherit helper methods from D3Hook
-  ...D3Hook.prototype,
+  ...createD3Hook({
+    onMount() {
+      this.data = this.getData();
+      this.initChart();
+    },
+    events: {
+      // Server emits with `D3Ex.Live.set_data(socket, "pie", new_data)`
+      set_data({ data }) { this.data = data; this.renderChart(); },
+    },
+  }),
 
   initChart() {
     const d3 = window.d3;
@@ -401,52 +391,50 @@ export const D3PieChart = {
     this.g = this.svg.append('g')
       .attr('transform', `translate(${width/2}, ${height/2})`);
 
-    // Create pie layout
     this.pie = d3.pie().value(d => d.value);
-
-    // Create arc generator
-    this.arc = d3.arc()
-      .innerRadius(inner_radius)
-      .outerRadius(outer_radius);
-
-    // Create color scale
+    this.arc = d3.arc().innerRadius(inner_radius).outerRadius(outer_radius);
     this.color = d3.scaleOrdinal(d3.schemeCategory10);
 
     this.renderChart();
   },
 
   renderChart() {
-    const d3 = window.d3;
+    const arcs = this.g.selectAll('.arc').data(this.pie(this.data));
 
-    // Bind data
-    const arcs = this.g.selectAll('.arc')
-      .data(this.pie(this.data));
-
-    // Enter + Update
-    const arcEnter = arcs.enter()
-      .append('g')
-      .attr('class', 'arc');
-
+    const arcEnter = arcs.enter().append('g').attr('class', 'arc');
     arcEnter.append('path')
       .attr('fill', (d, i) => this.color(i))
-      .on('click', (event, d) => {
-        this.sendEvent('on_slice_click', d.data);
-      });
+      .on('click', (event, d) => this.sendEvent('on_slice_click', d.data));
 
     arcEnter.merge(arcs).select('path')
-      .transition()
-      .duration(750)
+      .transition().duration(750)
       .attr('d', this.arc);
 
-    // Exit
     arcs.exit().remove();
   },
-
-  updateChart() {
-    this.renderChart();
-  }
 };
 ```
+
+**What `createD3Hook` gives you:**
+
+- `mounted()` — checks for `window.d3`, parses `data-config` into
+  `this.config`, calls your `onMount`, then binds id-scoped events.
+- `updated()` — calls your optional `onUpdated` (use for scalar
+  `data-*` attribute diffs like selection; bulk data flows through
+  `events`).
+- `destroyed()` — calls your optional `onDestroy`, then `this.cleanup()`
+  (stops force simulations, clears throttle timers).
+- Helper methods from `D3Hook` (`getConfig`, `getData`, `getLinks`,
+  `getSelected`, `sendEvent`, `bindDataEvents`).
+
+The `events` map subscribes to `${this.el.id}:${op}` so multiple charts
+on a page don't cross-talk. Server side, push with `D3Ex.Live.set_data/3`,
+`append/3`, `patch/3`, `remove/3`, or any custom op you emit via
+`push_event(socket, "#{id}:my_op", payload)`.
+
+If you need the older imperative style, `D3Hook` is still exported with
+just the helper methods — you can write `mounted`/`updated`/`destroyed`
+by hand and spread `...D3Hook` for the helpers.
 
 ### 3. Register the Hook
 

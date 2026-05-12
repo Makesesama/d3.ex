@@ -97,6 +97,19 @@ defmodule D3ExDemoWeb.HomeLive do
             </p>
           </.link>
         </li>
+
+        <li>
+          <.link
+            navigate={~p"/pie"}
+            class="block rounded-lg border p-5 hover:bg-base-200 transition"
+          >
+            <div class="text-lg font-medium">Pie chart (custom hook)</div>
+            <p class="text-sm text-base-content/70">
+              A user-defined component built with <code>createD3Hook</code>.
+              Demonstrates the factory pattern documented in the README.
+            </p>
+          </.link>
+        </li>
       </ul>
     </div>
     """

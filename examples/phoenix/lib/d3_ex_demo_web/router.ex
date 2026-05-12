@@ -1,0 +1,31 @@
+defmodule D3ExDemoWeb.Router do
+  use D3ExDemoWeb, :router
+
+  pipeline :browser do
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:fetch_live_flash)
+    plug(:put_root_layout, html: {D3ExDemoWeb.Layouts, :root})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
+  end
+
+  pipeline :api do
+    plug(:accepts, ["json"])
+  end
+
+  scope "/", D3ExDemoWeb do
+    pipe_through(:browser)
+
+    live("/", HomeLive)
+    live("/bar", BarChartLive)
+    live("/line", LineChartLive)
+    live("/network", NetworkGraphLive)
+    live("/dashboard", DashboardLive)
+  end
+
+  # Other scopes may use custom stacks.
+  # scope "/api", D3ExDemoWeb do
+  #   pipe_through :api
+  # end
+end

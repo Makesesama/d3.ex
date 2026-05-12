@@ -181,8 +181,8 @@ export const D3NetworkGraph = {
     }
 
     this.g = this.svg.append('g');
-    this.linkGroup = this.g.select('.links');
-    this.nodeGroup = this.g.select('.nodes');
+    this.linkGroup = this.g.append('g').attr('class', 'links');
+    this.nodeGroup = this.g.append('g').attr('class', 'nodes');
 
     // Create force simulation
     this.simulation = d3.forceSimulation(this.nodes)

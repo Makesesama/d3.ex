@@ -145,10 +145,7 @@ defmodule D3Ex.Components.NetworkGraph do
       class="d3-network-graph"
       style={"width: #{@config.width}px; height: #{@config.height}px;"}
     >
-      <svg width={@config.width} height={@config.height}>
-        <g class="links"></g>
-        <g class="nodes"></g>
-      </svg>
+      <svg width={@config.width} height={@config.height}></svg>
 
       <%= if @on_select do %>
         <input type="hidden" name="on_select" value={@on_select} />

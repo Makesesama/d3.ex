@@ -23,6 +23,7 @@ defmodule D3ExDemoWeb.Router do
     live("/network", NetworkGraphLive)
     live("/dashboard", DashboardLive)
     live("/stream", StreamLive)
+    live("/reactive", ReactiveLive)
   end
 
   # Other scopes may use custom stacks.

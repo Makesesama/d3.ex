@@ -84,6 +84,19 @@ defmodule D3ExDemoWeb.HomeLive do
             </p>
           </.link>
         </li>
+
+        <li>
+          <.link
+            navigate={~p"/reactive"}
+            class="block rounded-lg border p-5 hover:bg-base-200 transition"
+          >
+            <div class="text-lg font-medium">Reactive cascade</div>
+            <p class="text-sm text-base-content/70">
+              One click on a bar drives a server-orchestrated <code>patch</code> +
+              <code>append</code> across multiple charts. Pure server-side control.
+            </p>
+          </.link>
+        </li>
       </ul>
     </div>
     """

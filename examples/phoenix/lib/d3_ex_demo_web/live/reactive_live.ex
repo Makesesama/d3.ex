@@ -17,8 +17,8 @@ defmodule D3ExDemoWeb.ReactiveLive do
 
   use D3ExDemoWeb, :live_view
 
-  import D3Ex.Components.BarChart
-  import D3Ex.Components.LineChart
+  import D3ExDemoWeb.Components.Charts.BarChart
+  import D3ExDemoWeb.Components.Charts.LineChart
 
   @categories ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"]
 

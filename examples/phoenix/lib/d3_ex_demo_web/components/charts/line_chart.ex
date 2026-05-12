@@ -1,6 +1,9 @@
-defmodule D3Ex.Components.LineChart do
+defmodule D3ExDemoWeb.Components.Charts.LineChart do
   @moduledoc """
-  Multi-line chart component with interactive tooltips and legends.
+  Example multi-line chart built on `D3Ex.Component`. Lives in the demo app,
+  not the library — D3Ex itself ships only the bridge primitives.
+
+  Pairs with `assets/js/hooks/line_chart.js`.
 
   ## Example
 
@@ -16,38 +19,15 @@ defmodule D3Ex.Components.LineChart do
       />
 
   `:initial_data` is consumed once at mount. For subsequent updates, use
-  `D3Ex.Live.set_data/3`, `append/3`, `patch/3`, or `remove/3` — the chart
-  receives a tiny WebSocket delta instead of a re-serialized full dataset.
-
-  ## Data Format
-
-  For single line:
-
-      [
-        %{date: ~D[2024-01-01], value: 100},
-        %{date: ~D[2024-01-02], value: 150},
-        ...
-      ]
-
-  For multiple lines (use `series_key`):
-
-      [
-        %{date: ~D[2024-01-01], value: 100, metric: "sales"},
-        %{date: ~D[2024-01-01], value: 80, metric: "costs"},
-        %{date: ~D[2024-01-02], value: 150, metric: "sales"},
-        %{date: ~D[2024-01-02], value: 90, metric: "costs"},
-        ...
-      ]
+  `D3Ex.Live.set_data/3`, `append/3`, `patch/3`, or `remove/3`.
 
   ## Options
 
-  - `x_key` - Key for x-axis values (required)
-  - `y_key` - Key for y-axis values (required)
-  - `series_key` - Key for grouping multiple lines (optional)
-  - `curve_type` - Line curve type: "linear", "monotone", "step" (default: "monotone")
-  - `show_points` - Show data points on lines (default: true)
-  - `show_area` - Fill area under lines (default: false)
-  - `show_grid` - Show grid lines (default: true)
+  - `x_key`, `y_key` - Keys for the axes
+  - `series_key` - Optional key for grouping multiple lines
+  - `curve_type` - "linear" | "monotone" | "step" (default: "monotone")
+  - `show_points`, `show_area`, `show_grid` - Visual toggles
+  - `on_point_click`, `on_line_hover` - LiveView event names
   """
 
   use D3Ex.Component
@@ -70,18 +50,6 @@ defmodule D3Ex.Components.LineChart do
 
   @impl true
   def prepare_assigns(assigns) do
-    if Map.has_key?(assigns, :data) do
-      raise ArgumentError, """
-      `:data` is no longer accepted by D3Ex.Components.LineChart. Rename it
-      to `:initial_data` and route updates through `D3Ex.Live`:
-
-          <.line_chart id="trends" initial_data={@time_series_data} ... />
-
-          # Then, in your LiveView:
-          D3Ex.Live.append(socket, "trends", [%{date: ..., value: 42}])
-      """
-    end
-
     assigns
     |> Map.put_new(:initial_data, [])
     |> Map.put_new(:x_key, :x)

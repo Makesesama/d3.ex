@@ -1,109 +1,46 @@
 defmodule D3Ex do
   @moduledoc """
-  D3Ex provides seamless integration between D3.js and Phoenix LiveView.
+  Minimal bridge between D3.js and Phoenix LiveView.
 
-  This library implements a minimal state synchronization strategy where:
-  - LiveView manages data and essential state (current items, selections)
-  - D3.js owns all visual rendering and high-frequency interactions
-  - Only important state changes flow between server and client
+  D3Ex ships no chart implementations. It gives you two things:
 
-  ## Architecture
+    * `D3Ex.Component` — a Phoenix component behavior with helpers to JSON-
+      encode data/config/events into `data-*` attributes a JS hook can read.
+    * `D3Ex.Live` — `push_event` helpers (`set_data/3`, `append/3`, `patch/3`,
+      `remove/3`) that target a chart by id, so multiple charts on a page do
+      not cross-talk.
 
-  The library uses a "thin server, rich client" model:
+  On the JS side (`priv/static/js/d3_hooks.js`) it ships:
 
-  1. **Server Side (Elixir/LiveView)**:
-     - Manages data state (`@items`, `@selected_item`)
-     - Pushes data updates via `push_event/3`
-     - Handles important events from client (selections, final positions)
+    * `D3Hook` — a mixin of helpers (`getConfig`, `getData`, `sendEvent`,
+      `bindDataEvents`, ...).
+    * `createD3Hook` — a factory that bundles the `mounted`/`updated`/
+      `destroyed` lifecycle, config parsing, and id-scoped event wiring.
 
-  2. **Client Side (D3.js + LiveView Hooks)**:
-     - Owns all visual state (positions, zoom, animations)
-     - Handles high-frequency interactions (dragging, panning)
-     - Sends throttled/debounced updates back to server
+  ## Writing a chart
 
-  ## Benefits
+  Three steps: an Elixir component, a JS hook, and a LiveView that uses them.
+  See the `README` and the `examples/phoenix/` demo app for complete working
+  patterns (bar, line, network graph, Phoenix `stream/3` bridge).
 
-  - **High Performance**: Minimal WebSocket traffic, no DOM diffing for visualizations
-  - **Responsive UI**: D3.js handles interactions at 60fps
-  - **Scalable**: Server focuses on data, not visual pixels
-  - **Real-time**: LiveView provides instant data sync across clients
+  ## Streaming updates after mount
 
-  ## Usage
+  `:initial_data` (or whatever you name it on your component) is consumed
+  once at mount. For everything after that, push deltas:
 
-  Add to your LiveView:
+      D3Ex.Live.set_data(socket, "sales", new_data)
+      D3Ex.Live.append(socket, "metrics", [%{t: ..., value: 42}])
+      D3Ex.Live.patch(socket, "sales", [%{key: "Feb", changes: %{sales: 13_000}}])
+      D3Ex.Live.remove(socket, "sales", ["Jan"])
 
-      defmodule MyAppWeb.GraphLive do
-        use Phoenix.LiveView
-        import D3Ex.Components.NetworkGraph
+  Or push directly for custom ops:
 
-        def mount(_params, _session, socket) do
-          {:ok, assign(socket,
-            initial_nodes: [
-              %{id: "1", label: "Node 1"},
-              %{id: "2", label: "Node 2"}
-            ],
-            initial_links: [
-              %{source: "1", target: "2"}
-            ],
-            selected_node: nil
-          )}
-        end
+      push_event(socket, "graph:add_node", %{node: ...})
 
-        def handle_event("node_selected", %{"id" => id}, socket) do
-          {:noreply, assign(socket, selected_node: id)}
-        end
-
-        # Stream updates without re-rendering the chart wrapper:
-        def handle_info({:new_node, node}, socket) do
-          {:noreply, D3Ex.Live.add_node(socket, "my-graph", node)}
-        end
-      end
-
-  In your template:
-
-      <.network_graph
-        id="my-graph"
-        initial_nodes={@initial_nodes}
-        initial_links={@initial_links}
-        on_select="node_selected"
-        selected={@selected_node}
-      />
-
-  ## Streaming updates
-
-  Components consume their `initial_*` props once at mount. Use `D3Ex.Live`
-  to stream subsequent updates as tiny WebSocket deltas:
-
-  - `D3Ex.Live.set_data/3` — full replace
-  - `D3Ex.Live.append/3` — append items
-  - `D3Ex.Live.patch/3` — partial updates by identity key
-  - `D3Ex.Live.remove/3` — remove items
-  - `D3Ex.Live.add_node/3`, `remove_node/3`, `update_node/4`, `add_link/3`,
-    `remove_link/4` — network graph helpers
-
-  All events are scoped per element id, so multiple charts on the same page
-  do not cross-talk.
-
-  ## Available Components
-
-  - `D3Ex.Components.NetworkGraph` - Force-directed network graphs
-  - `D3Ex.Components.BarChart` - Bar charts with animations
-  - `D3Ex.Components.LineChart` - Line/area charts
-  - `D3Ex.Components.ScatterPlot` - Scatter plots with brushing
-
-  See individual component documentation for detailed options.
-
-  ## Setup
-
-  To include D3.js in your application, add to your root layout:
-
-      <D3Ex.Helpers.d3_script />
-
-  This loads the bundled D3.js library from your server.
+  Your hook subscribes via the `events:` option to `createD3Hook` (or
+  `bindDataEvents/1` directly).
   """
 
-  @doc """
-  Returns the version of D3Ex.
-  """
+  @doc "Returns the version of D3Ex."
   def version, do: unquote(Mix.Project.config()[:version])
 end

@@ -1,7 +1,7 @@
 defmodule D3ExDemoWeb.BarChartLive do
   use D3ExDemoWeb, :live_view
 
-  import D3Ex.Components.BarChart
+  import D3ExDemoWeb.Components.Charts.BarChart
 
   @initial_data [
     %{month: "Jan", sales: 12_000},

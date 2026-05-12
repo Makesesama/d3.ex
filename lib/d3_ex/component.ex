@@ -1,33 +1,34 @@
 defmodule D3Ex.Component do
   @moduledoc """
-  Base component behavior for creating custom D3.js visualizations.
+  Component behavior for building D3.js visualizations on top of LiveView.
 
-  This module provides the foundation for building any D3 visualization
-  component. Users can create their own components by using this module
-  and implementing the required callbacks.
+  `D3Ex.Component` is a thin shell that handles the boilerplate of putting a
+  D3 hook on the page: it generates a DOM id, merges your defaults with caller
+  assigns, and provides helpers to JSON-encode data/config/events into
+  `data-*` attributes the JS hook can read.
 
-  ## Creating a Custom Component
+  You write two things:
 
-  To create a custom D3 visualization:
+    1. A module that `use D3Ex.Component`, implements `default_config/0`,
+       `prepare_assigns/1`, and `render/1`.
+    2. A JS hook (typically with `createD3Hook`) that owns the D3 rendering.
 
-  1. Create a new module and use `D3Ex.Component`
-  2. Implement the `render/1` callback to define your component's template
-  3. Create a corresponding JavaScript hook (optional for custom behavior)
-  4. Configure default options via `default_config/0` callback (optional)
+  ## Example
 
-  ## Example: Custom Pie Chart
-
-      defmodule MyApp.D3Components.PieChart do
+      defmodule MyApp.D3.PieChart do
         use D3Ex.Component
 
         @impl true
         def default_config do
-          %{
-            width: 500,
-            height: 500,
-            inner_radius: 0,
-            color_scheme: "schemeCategory10"
-          }
+          %{width: 480, height: 480, inner_radius: 0}
+        end
+
+        @impl true
+        def prepare_assigns(assigns) do
+          assigns
+          |> Map.put_new(:initial_data, [])
+          |> Map.put_new(:value_key, :value)
+          |> Map.put_new(:on_slice_click, nil)
         end
 
         @impl true
@@ -36,80 +37,53 @@ defmodule D3Ex.Component do
           <div
             id={@id}
             phx-hook="D3PieChart"
-            data-config={encode_config(@config)}
-            data-items={encode_data(@data)}
-            class="d3-pie-chart"
+            data-items={encode_data(@initial_data)}
+            data-config={encode_config(Map.put(@config, :value_key, @value_key))}
+            data-events={encode_events(%{on_slice_click: @on_slice_click})}
+            phx-update="ignore"
+            style={"width: \#{@config.width}px; height: \#{@config.height}px;"}
           >
-            <svg></svg>
+            <svg width={@config.width} height={@config.height}></svg>
           </div>
           \"\"\"
         end
       end
 
-  Then create the corresponding JavaScript hook in `assets/js/hooks/pie_chart.js`:
+  After `import MyApp.D3.PieChart`, use it as `<.pie_chart ... />`. The
+  function name is derived from the module's last segment.
 
-      export const D3PieChart = {
-        mounted() {
-          this.chart = new PieChartD3(this.el, this.getConfig());
-          this.chart.render(this.getData());
-        },
+  ## Top-level config keys
 
-        updated() {
-          this.chart.update(this.getData());
-        },
+  Any top-level assign whose key matches a key in `default_config/0` is merged
+  into `@config`. So callers can write either:
 
-        getConfig() {
-          return JSON.parse(this.el.dataset.config);
-        },
+      <.pie_chart width={600} inner_radius={50} />
 
-        getData() {
-          return JSON.parse(this.el.dataset.items);
-        }
-      };
+  or:
 
-  ## Data Flow
+      <.pie_chart config={%{width: 600, inner_radius: 50}} />
 
-  1. **Mount**: LiveView renders component with initial data
-  2. **Initialize**: JS Hook reads data attributes and creates D3 visualization
-  3. **Update**: When LiveView assigns change, hook receives `updated()` callback
-  4. **Interact**: User interacts with visualization (click, drag, etc.)
-  5. **Event**: Hook sends important events back via `pushEvent()`
-  6. **Sync**: LiveView handles event and updates state if needed
+  Top-level wins over the `:config` map.
 
-  ## Minimal State Synchronization
+  ## Helpers in scope
 
-  Follow these principles for optimal performance:
+  After `use D3Ex.Component`:
 
-  - **Server State**: Only data, selections, and saved configurations
-  - **Client State**: All visual state (positions, zoom, animations)
-  - **Communication**: Throttle/debounce high-frequency events
-  - **Updates**: Send only diffs or changed items when possible
-
-  ## Helpers Available
-
-  - `ensure_id/1` - Generates unique IDs
-  - `encode_data/1` - JSON encodes data for JavaScript
-  - `encode_config/1` - JSON encodes configuration
-  - `merge_config/2` - Merges user config with defaults
+    * `ensure_id/1`        — generate a DOM id if not provided
+    * `encode_data/1`      — `Jason.encode!/1`
+    * `encode_config/1`    — `Jason.encode!/1`
+    * `encode_events/1`    — encodes a `%{slot => handler_name}` map, dropping nils
+    * `merge_config/2`     — merges defaults + caller config + top-level keys
   """
 
-  @doc """
-  Returns the default configuration for this component.
-  Override this to provide component-specific defaults.
-  """
+  @doc "Default configuration map for the component."
   @callback default_config() :: map()
 
-  @doc """
-  Renders the component template.
-  This is where you define your component's HTML/HEEx structure.
-  """
-  @callback render(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
-
-  @doc """
-  Normalizes assigns before render — applies defaults, validates required
-  props, etc.
-  """
+  @doc "Normalize assigns before render — apply defaults, validate, etc."
   @callback prepare_assigns(assigns :: map()) :: map()
+
+  @doc "Render the component's HEEx template."
+  @callback render(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
 
   @optional_callbacks [default_config: 0, prepare_assigns: 1]
 
@@ -120,17 +94,13 @@ defmodule D3Ex.Component do
 
       @behaviour D3Ex.Component
 
-      @doc """
-      Renders the #{__MODULE__} component.
-      """
+      @doc "Renders this component."
       def component(assigns) do
-        assigns =
-          assigns
-          |> ensure_id()
-          |> merge_config(default_config())
-          |> prepare_assigns()
-
-        render(assigns)
+        assigns
+        |> ensure_id()
+        |> merge_config(default_config())
+        |> prepare_assigns()
+        |> render()
       end
 
       @doc false
@@ -147,6 +117,8 @@ defmodule D3Ex.Component do
 
   @doc false
   defmacro __before_compile__(env) do
+    # Define a function named after the module's last segment so callers can
+    # write `<.bar_chart ... />` after `import MyApp.D3.BarChart`.
     name =
       env.module
       |> Module.split()
@@ -154,47 +126,29 @@ defmodule D3Ex.Component do
       |> Macro.underscore()
       |> String.to_atom()
 
-    # Expose <.bar_chart>, <.line_chart>, <.network_graph>, ... by also
-    # defining a function named after the module's last segment. Lets
-    # `import D3Ex.Components.BarChart` work the way the README documents.
     quote do
-      @doc """
-      Convenience alias for `component/1` matching the module's name.
-      Lets you write `<.#{unquote(name)} ... />` after importing the module.
-      """
+      @doc "Alias for `component/1` named after the module."
       def unquote(name)(assigns), do: component(assigns)
     end
   end
 
-  @doc """
-  Generates a unique DOM ID for a component if not provided.
-  """
+  @doc "Generate a unique DOM id if not provided."
   def ensure_id(assigns) do
     Map.put_new_lazy(assigns, :id, fn ->
       "d3ex-#{:erlang.unique_integer([:positive])}"
     end)
   end
 
-  @doc """
-  Encodes data to JSON for passing to JavaScript hooks.
-  """
-  def encode_data(data) do
-    Jason.encode!(data)
-  end
+  @doc "JSON-encode data for a `data-*` attribute."
+  def encode_data(data), do: Jason.encode!(data)
+
+  @doc "JSON-encode config for a `data-*` attribute."
+  def encode_config(config), do: Jason.encode!(config)
 
   @doc """
-  Encodes configuration to JSON for passing to JavaScript hooks.
-  """
-  def encode_config(config) do
-    Jason.encode!(config)
-  end
-
-  @doc """
-  Encodes an event-handler map to JSON for the `data-events` attribute.
-
-  Nil values are filtered out so unset handlers don't appear in the map.
-  The hook reads this once at mount and uses it to resolve `sendEvent`
-  calls to LiveView event names.
+  Encode a `%{slot => handler_name}` map for `data-events`, dropping nil
+  handlers. The hook reads this map once at mount and uses it to resolve
+  `sendEvent` calls to LiveView event names.
 
       <div data-events={encode_events(%{
         on_bar_click: @on_bar_click,
@@ -209,56 +163,28 @@ defmodule D3Ex.Component do
   end
 
   @doc """
-  Merges user-provided configuration with component defaults.
+  Merge `defaults` + the caller's `:config` map + any top-level assigns whose
+  keys also appear in `defaults`. Top-level wins over `:config`; `:config`
+  wins over defaults.
   """
   def merge_config(assigns, defaults) do
     user_config = Map.get(assigns, :config, %{})
 
-    merged_config =
+    top_level =
+      defaults
+      |> Map.keys()
+      |> Enum.reduce(%{}, fn key, acc ->
+        case Map.get(assigns, key) do
+          nil -> acc
+          value -> Map.put(acc, key, value)
+        end
+      end)
+
+    merged =
       defaults
       |> Map.merge(user_config)
-      |> Map.merge(extract_config_from_assigns(assigns))
+      |> Map.merge(top_level)
 
-    Map.put(assigns, :config, merged_config)
-  end
-
-  # Extract configuration values from top-level assigns
-  # This allows users to pass config as either:
-  #   <.component config=%{width: 800} />
-  # or:
-  #   <.component width={800} />
-  defp extract_config_from_assigns(assigns) do
-    config_keys = [:width, :height, :margin, :color_scheme, :animation_duration]
-
-    Enum.reduce(config_keys, %{}, fn key, acc ->
-      case Map.get(assigns, key) do
-        nil -> acc
-        value -> Map.put(acc, key, value)
-      end
-    end)
-  end
-
-  @doc """
-  Helper to build event handlers for D3 components.
-
-  Returns a map of event names to event handler names that can be
-  passed to JavaScript hooks.
-
-  ## Example
-
-      assigns = build_event_handlers(assigns, [:click, :hover, :drag_end])
-      # Returns: %{on_click: "item_clicked", on_hover: "item_hovered", ...}
-  """
-  def build_event_handlers(assigns, event_names) do
-    Enum.reduce(event_names, %{}, fn event, acc ->
-      handler_key = :"on_#{event}"
-      handler_value = Map.get(assigns, handler_key)
-
-      if handler_value do
-        Map.put(acc, handler_key, handler_value)
-      else
-        acc
-      end
-    end)
+    Map.put(assigns, :config, merged)
   end
 end

@@ -2,7 +2,10 @@ defmodule D3Ex.ComponentTest do
   use ExUnit.Case, async: true
 
   import Phoenix.Component
-  import Phoenix.LiveViewTest
+  # `except: [render: 1]` so the imported test helper doesn't conflict with the
+  # `render/1` callback defined inside the nested TestComponent module — Elixir
+  # imports leak into nested `defmodule` blocks.
+  import Phoenix.LiveViewTest, except: [render: 1]
 
   describe "D3Ex.Component" do
     defmodule TestComponent do
@@ -86,7 +89,12 @@ defmodule D3Ex.ComponentTest do
       result = rendered_to_string(TestComponent.component(assigns))
 
       assert result =~ "data-items="
-      assert result =~ Jason.encode!([%{x: 1, y: 2}, %{x: 3, y: 4}])
+      # Phoenix HTML-escapes data-* values; map key order is unspecified.
+      # Just verify the values made it through.
+      assert result =~ "&quot;x&quot;:1"
+      assert result =~ "&quot;y&quot;:2"
+      assert result =~ "&quot;x&quot;:3"
+      assert result =~ "&quot;y&quot;:4"
     end
   end
 

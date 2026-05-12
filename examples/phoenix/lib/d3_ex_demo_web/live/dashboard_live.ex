@@ -1,9 +1,9 @@
 defmodule D3ExDemoWeb.DashboardLive do
   use D3ExDemoWeb, :live_view
 
-  import D3Ex.Components.BarChart
-  import D3Ex.Components.LineChart
-  import D3Ex.Components.NetworkGraph
+  import D3ExDemoWeb.Components.Charts.BarChart
+  import D3ExDemoWeb.Components.Charts.LineChart
+  import D3ExDemoWeb.Components.Charts.NetworkGraph
 
   @sales [
     %{month: "Jan", sales: 12_000},

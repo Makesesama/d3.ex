@@ -1,6 +1,9 @@
-defmodule D3Ex.Components.BarChart do
+defmodule D3ExDemoWeb.Components.Charts.BarChart do
   @moduledoc """
-  Animated bar chart component with interactive features.
+  Example bar chart built on `D3Ex.Component`. Lives in the demo app, not the
+  library — D3Ex itself ships only the bridge primitives.
+
+  Pairs with `assets/js/hooks/bar_chart.js`.
 
   ## Example
 
@@ -14,30 +17,18 @@ defmodule D3Ex.Components.BarChart do
         height={400}
       />
 
-  ## Data Format
-
   `:initial_data` is consumed once at mount. For subsequent updates, use
   `D3Ex.Live.set_data/3`, `append/3`, `patch/3`, or `remove/3` with the
-  component's `id`. Each call results in a tiny WebSocket delta instead of
-  a re-serialized full dataset.
-
-      [
-        %{month: "Jan", sales: 1000, region: "North"},
-        %{month: "Feb", sales: 1500, region: "North"},
-        ...
-      ]
+  component's `id`.
 
   ## Options
 
-  - `initial_data` - Initial dataset (required); subsequent updates go via `D3Ex.Live`
-  - `x_key` - Key for x-axis values (also the identity key used by `patch`/`remove`)
+  - `initial_data` - Initial dataset
+  - `x_key` - Key for x-axis values (also the identity key for `patch`/`remove`)
   - `y_key` - Key for y-axis values
   - `color_key` - Key for grouping/coloring bars (optional)
-  - `x_label` - Label for x-axis
-  - `y_label` - Label for y-axis
-  - `on_bar_click` - Event handler for bar clicks
-  - `on_bar_hover` - Event handler for bar hover
-  - `animation_duration` - Animation duration in ms (default: 750)
+  - `x_label`, `y_label` - Axis labels
+  - `on_bar_click`, `on_bar_hover` - LiveView event names
   """
 
   use D3Ex.Component
@@ -57,19 +48,6 @@ defmodule D3Ex.Components.BarChart do
 
   @impl true
   def prepare_assigns(assigns) do
-    if Map.has_key?(assigns, :data) do
-      raise ArgumentError, """
-      `:data` is no longer accepted by D3Ex.Components.BarChart. Rename it to
-      `:initial_data` and route updates through `D3Ex.Live`:
-
-          <.bar_chart id="sales" initial_data={@chart_data} ... />
-
-          # Then, in your LiveView:
-          D3Ex.Live.set_data(socket, "sales", new_dataset)
-          D3Ex.Live.patch(socket, "sales", [%{key: "Feb", changes: %{sales: 13_000}}])
-      """
-    end
-
     assigns
     |> Map.put_new(:initial_data, [])
     |> Map.put_new(:x_key, :x)

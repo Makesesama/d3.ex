@@ -1,7 +1,7 @@
 defmodule D3ExDemoWeb.LineChartLive do
   use D3ExDemoWeb, :live_view
 
-  import D3Ex.Components.LineChart
+  import D3ExDemoWeb.Components.Charts.LineChart
 
   @impl true
   def mount(_params, _session, socket) do

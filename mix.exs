@@ -1,7 +1,7 @@
 defmodule D3Ex.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.2.0"
   @source_url "https://github.com/Makesesama/d3.ex"
 
   def project do
@@ -41,9 +41,10 @@ defmodule D3Ex.MixProject do
 
   defp description do
     """
-    D3Ex provides seamless integration between D3.js and Phoenix LiveView
-    using minimal state synchronization for high-performance client-side
-    visualizations with server-side data management.
+    Minimal bridge between D3.js and Phoenix LiveView. Provides the wiring
+    (id-scoped event channels, JSON-encoded data-* attributes, a hook
+    lifecycle factory) and gets out of your way so you can write D3 normally
+    with Phoenix server-side state available.
     """
   end
 

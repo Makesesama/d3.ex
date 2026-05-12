@@ -5,85 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] — focused core
 
-### Changed (breaking — pre-1.0)
+D3Ex is now a bridge, not a chart library. The baked-in chart components,
+data-transformation DSL, theme presets, and configuration builders are gone.
+What's left is the wiring people actually need to use D3 normally with
+Phoenix server-side state.
 
-- **Chart data updates now stream over `push_event` instead of attribute diffs.**
-  Re-assigning `:data` no longer updates the chart after mount; use
-  `D3Ex.Live` helpers to push deltas.
-- **Renamed component props to reflect one-shot semantics:**
-  - `D3Ex.Components.BarChart`, `LineChart`: `:data` → `:initial_data`
-  - `D3Ex.Components.NetworkGraph`: `:nodes` → `:initial_nodes`,
-    `:links` → `:initial_links`
-  Passing the old names raises an `ArgumentError` with a migration hint.
-- **Removed `D3Ex.Components.NetworkGraph.push_graph_update/3`.** Use the
-  id-scoped helpers on `D3Ex.Live` (`add_node/3`, `remove_node/3`,
-  `update_node/4`, `add_link/3`, `remove_link/4`) instead.
-- **Removed page-global `graph:*` event listeners.** Events are now scoped
-  per element id, so multiple network graphs on a page no longer cross-talk.
+### Removed (breaking)
 
-### Added
+- **`D3Ex.Data`** — wrappers around `Enum.filter/2`, `group_by/2`,
+  `sort_by/3`, `take/2`. Use `Enum` directly.
+- **`D3Ex.Config`** — theme presets, force/interaction normalizers,
+  responsive shells. Build the config map you want in your own code.
+- **`D3Ex.Components`** — stale duplicate of `D3Ex.Component` helpers.
+- **`D3Ex.Helpers`** — `d3_script/1` was off-scope. Load D3 the way you load
+  any JS dependency (CDN, npm, or local file).
+- **`D3Ex.Components.{BarChart, LineChart, NetworkGraph, StreamChart}`** —
+  the example chart components moved to `examples/phoenix/lib/d3_ex_demo_web/
+  components/charts/`. Their JS hooks moved to `examples/phoenix/assets/js/
+  hooks/`. Copy them into your app to use; D3Ex itself ships nothing visual.
+- **`D3Ex.Live.{add_node, remove_node, update_node, add_link, remove_link}`** —
+  network-graph-specific helpers. Use `push_event(socket, "graph:add_node",
+  %{node: ...})` directly.
+- **Bundled `d3.v7.min.js`** — load D3 via CDN/npm.
+- **Renamed `:data` → `:initial_data` ArgumentErrors** removed from the moved
+  chart components.
 
-- **`D3Ex.Live`** module — imperative helpers to stream chart updates from a
-  LiveView without re-shipping the full dataset:
-  - `set_data/3`, `append/3`, `patch/3`, `remove/3` (generic)
-  - `add_node/3`, `remove_node/3`, `update_node/4`, `add_link/3`,
-    `remove_link/4` (network graph)
-  All events are scoped per element id.
-- `D3Hook.bindDataEvents(handlers)` JS helper for subscribing to the
-  id-scoped event protocol from custom hooks.
-- **`D3Ex.Components.StreamChart`** — a Phoenix `stream/3` bridge. Renders a
-  hidden `phx-update="stream"` feed that the `D3Stream` hook observes via
-  `MutationObserver` and re-feeds into D3, instead of routing updates through
-  `D3Ex.Live`. Lets users bound server-side memory
-  (`stream_insert(socket, :points, p, limit: -N)`) and get LiveView's reconnect
-  semantics for free. v1 supports `renderer="line"` with numeric x/y values;
-  event handlers, time-axis support, and additional renderers will come in
-  follow-ups.
+### Changed
 
-### Migration
+- `D3Ex.Component.merge_config/2` now merges any top-level assign whose key
+  exists in `default_config/0`, not just a hardcoded list of five keys.
+- `D3Ex.Component.build_event_handlers/2` removed (was unused).
 
-```elixir
-# Before
-<.bar_chart id="sales" data={@sales_data} x_key={:month} y_key={:sales} />
+### What's still here
 
-def handle_info(:tick, socket) do
-  {:noreply, assign(socket, :sales_data, new_data)}
-end
+- `D3Ex.Component` — component behavior + encoding helpers (`encode_data/1`,
+  `encode_config/1`, `encode_events/1`, `merge_config/2`, `ensure_id/1`).
+- `D3Ex.Live` — `set_data/3`, `append/3`, `patch/3`, `remove/3`.
+- JS: `D3Hook` + `createD3Hook`.
 
-# After
-<.bar_chart id="sales" initial_data={@sales_data} x_key={:month} y_key={:sales} />
+## [0.1.0] — 2025-01-07
 
-def handle_info(:tick, socket) do
-  {:noreply, D3Ex.Live.set_data(socket, "sales", new_data)}
-end
-```
-
-## [0.1.0] - 2025-01-07
-
-### Added
-- Initial release of D3Ex
-- Core `D3Ex.Component` behavior for building custom D3 visualizations
-- `D3Ex.Components.NetworkGraph` - Force-directed network graphs
-- `D3Ex.Components.BarChart` - Animated bar charts
-- `D3Ex.Components.LineChart` - Multi-line time series charts
-- JavaScript hooks for seamless LiveView integration
-- Minimal state synchronization architecture
-- Comprehensive documentation and examples
-- Example LiveView applications:
-  - Network graph with selection and drag
-  - Real-time dashboard with multiple charts
-  - Custom component building guide
-- Test suite with component tests
-- MIT License
-
-### Features
-- **Performance**: Minimal WebSocket traffic using thin server, rich client model
-- **Extensibility**: Easy-to-use component pattern for custom visualizations
-- **Real-time**: LiveView integration for instant data synchronization
-- **Interactive**: Support for clicks, drags, zooms, and custom events
-- **Configurable**: Sensible defaults with full customization options
-
-[Unreleased]: https://github.com/Makesesama/d3.ex/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Makesesama/d3.ex/releases/tag/v0.1.0
+Initial release.

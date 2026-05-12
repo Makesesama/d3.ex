@@ -1,7 +1,7 @@
 defmodule D3ExDemoWeb.StreamLive do
   use D3ExDemoWeb, :live_view
 
-  import D3Ex.Components.StreamChart
+  import D3ExDemoWeb.Components.Charts.StreamChart
 
   # Phoenix prunes positive limits from the back (newest) and negative limits
   # from the front (oldest). For a rolling window of "keep the last N" we
@@ -66,7 +66,6 @@ defmodule D3ExDemoWeb.StreamLive do
         stream={@streams.points}
         x_key={:t}
         y_key={:y}
-        renderer="line"
         width={700}
         height={360}
         show_points={false}

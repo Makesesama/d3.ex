@@ -1,7 +1,7 @@
 defmodule D3ExDemoWeb.NetworkGraphLive do
   use D3ExDemoWeb, :live_view
 
-  import D3Ex.Components.NetworkGraph
+  import D3ExDemoWeb.Components.Charts.NetworkGraph
 
   @initial_nodes [
     %{id: "alice", label: "Alice", group: "A"},
@@ -43,8 +43,8 @@ defmodule D3ExDemoWeb.NetworkGraphLive do
 
     {:noreply,
      socket
-     |> D3Ex.Live.add_node("graph", new_node)
-     |> D3Ex.Live.add_link("graph", %{source: new_node.id, target: target.id})
+     |> push_event("graph:add_node", %{node: new_node})
+     |> push_event("graph:add_link", %{link: %{source: new_node.id, target: target.id}})
      |> update(:nodes, &(&1 ++ [new_node]))
      |> assign(:last_action, "added #{new_node.label}, linked to #{target.label}")}
   end
@@ -59,7 +59,7 @@ defmodule D3ExDemoWeb.NetworkGraphLive do
 
     {:noreply,
      socket
-     |> D3Ex.Live.remove_node("graph", selected)
+     |> push_event("graph:remove_node", %{id: selected})
      |> update(:nodes, fn nodes -> Enum.reject(nodes, &(&1.id == selected)) end)
      |> assign(:selected, nil)
      |> assign(:last_action, "removed node #{selected}")}

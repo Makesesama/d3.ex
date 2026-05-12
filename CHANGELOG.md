@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (breaking — pre-1.0)
+
+- **Chart data updates now stream over `push_event` instead of attribute diffs.**
+  Re-assigning `:data` no longer updates the chart after mount; use
+  `D3Ex.Live` helpers to push deltas.
+- **Renamed component props to reflect one-shot semantics:**
+  - `D3Ex.Components.BarChart`, `LineChart`: `:data` → `:initial_data`
+  - `D3Ex.Components.NetworkGraph`: `:nodes` → `:initial_nodes`,
+    `:links` → `:initial_links`
+  Passing the old names raises an `ArgumentError` with a migration hint.
+- **Removed `D3Ex.Components.NetworkGraph.push_graph_update/3`.** Use the
+  id-scoped helpers on `D3Ex.Live` (`add_node/3`, `remove_node/3`,
+  `update_node/4`, `add_link/3`, `remove_link/4`) instead.
+- **Removed page-global `graph:*` event listeners.** Events are now scoped
+  per element id, so multiple network graphs on a page no longer cross-talk.
+
+### Added
+
+- **`D3Ex.Live`** module — imperative helpers to stream chart updates from a
+  LiveView without re-shipping the full dataset:
+  - `set_data/3`, `append/3`, `patch/3`, `remove/3` (generic)
+  - `add_node/3`, `remove_node/3`, `update_node/4`, `add_link/3`,
+    `remove_link/4` (network graph)
+  All events are scoped per element id.
+- `D3Hook.bindDataEvents(handlers)` JS helper for subscribing to the
+  id-scoped event protocol from custom hooks.
+
+### Migration
+
+```elixir
+# Before
+<.bar_chart id="sales" data={@sales_data} x_key={:month} y_key={:sales} />
+
+def handle_info(:tick, socket) do
+  {:noreply, assign(socket, :sales_data, new_data)}
+end
+
+# After
+<.bar_chart id="sales" initial_data={@sales_data} x_key={:month} y_key={:sales} />
+
+def handle_info(:tick, socket) do
+  {:noreply, D3Ex.Live.set_data(socket, "sales", new_data)}
+end
+```
+
 ## [0.1.0] - 2025-01-07
 
 ### Added

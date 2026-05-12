@@ -41,20 +41,21 @@ defmodule D3Ex.Examples.NetworkGraphLive do
 
   @impl true
   def handle_event("add_random_node", _params, socket) do
-    # Example: Add a new node dynamically
+    # Stream the new node and a linked edge via D3Ex.Live — the client
+    # accumulates them without re-shipping the full graph on every click.
     new_node = %{
       id: "node_#{:rand.uniform(10000)}",
       label: "Node #{length(socket.assigns.nodes) + 1}",
       group: Enum.random(["A", "B", "C"])
     }
 
-    # Could also use incremental update:
-    # push_event(socket, "graph:add_node", %{node: new_node})
+    socket =
+      socket
+      |> D3Ex.Live.add_node("example-graph", new_node)
+      |> maybe_push_link(new_node)
 
-    {:noreply,
-     socket
-     |> update(:nodes, &(&1 ++ [new_node]))
-     |> maybe_link_to_existing_node(new_node)}
+    # Mirror into assigns so the footer counts reflect the new node.
+    {:noreply, update(socket, :nodes, &(&1 ++ [new_node]))}
   end
 
   @impl true
@@ -81,8 +82,8 @@ defmodule D3Ex.Examples.NetworkGraphLive do
       <div class="border border-gray-300 rounded-lg overflow-hidden">
         <.network_graph
           id="example-graph"
-          nodes={@nodes}
-          links={@links}
+          initial_nodes={@nodes}
+          initial_links={@links}
           selected={@selected_node}
           on_select="node_selected"
           on_position_save="position_saved"
@@ -135,18 +136,18 @@ defmodule D3Ex.Examples.NetworkGraphLive do
     ]
   end
 
-  defp maybe_link_to_existing_node(socket, new_node) do
-    # Link new node to a random existing node
-    existing_nodes = socket.assigns.nodes
+  defp maybe_push_link(socket, new_node) do
+    case socket.assigns.nodes do
+      [] ->
+        socket
 
-    if length(existing_nodes) > 0 do
-      random_target = Enum.random(existing_nodes).id
+      existing ->
+        target_id = Enum.random(existing).id
+        link = %{source: new_node.id, target: target_id}
 
-      new_link = %{source: new_node.id, target: random_target}
-
-      update(socket, :links, &(&1 ++ [new_link]))
-    else
-      socket
+        socket
+        |> D3Ex.Live.add_link("example-graph", link)
+        |> update(:links, &(&1 ++ [link]))
     end
   end
 end

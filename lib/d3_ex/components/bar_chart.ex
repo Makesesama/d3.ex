@@ -6,7 +6,7 @@ defmodule D3Ex.Components.BarChart do
 
       <.bar_chart
         id="sales-chart"
-        data={@chart_data}
+        initial_data={@chart_data}
         x_key={:month}
         y_key={:sales}
         on_bar_click="bar_clicked"
@@ -16,7 +16,10 @@ defmodule D3Ex.Components.BarChart do
 
   ## Data Format
 
-  Data should be a list of maps:
+  `:initial_data` is consumed once at mount. For subsequent updates, use
+  `D3Ex.Live.set_data/3`, `append/3`, `patch/3`, or `remove/3` with the
+  component's `id`. Each call results in a tiny WebSocket delta instead of
+  a re-serialized full dataset.
 
       [
         %{month: "Jan", sales: 1000, region: "North"},
@@ -26,8 +29,9 @@ defmodule D3Ex.Components.BarChart do
 
   ## Options
 
-  - `x_key` - Key for x-axis values (required)
-  - `y_key` - Key for y-axis values (required)
+  - `initial_data` - Initial dataset (required); subsequent updates go via `D3Ex.Live`
+  - `x_key` - Key for x-axis values (also the identity key used by `patch`/`remove`)
+  - `y_key` - Key for y-axis values
   - `color_key` - Key for grouping/coloring bars (optional)
   - `x_label` - Label for x-axis
   - `y_label` - Label for y-axis
@@ -53,8 +57,21 @@ defmodule D3Ex.Components.BarChart do
 
   @impl true
   def prepare_assigns(assigns) do
+    if Map.has_key?(assigns, :data) do
+      raise ArgumentError, """
+      `:data` is no longer accepted by D3Ex.Components.BarChart. Rename it to
+      `:initial_data` and route updates through `D3Ex.Live`:
+
+          <.bar_chart id="sales" initial_data={@chart_data} ... />
+
+          # Then, in your LiveView:
+          D3Ex.Live.set_data(socket, "sales", new_dataset)
+          D3Ex.Live.patch(socket, "sales", [%{key: "Feb", changes: %{sales: 13_000}}])
+      """
+    end
+
     assigns
-    |> Map.put_new(:data, [])
+    |> Map.put_new(:initial_data, [])
     |> Map.put_new(:x_key, :x)
     |> Map.put_new(:y_key, :y)
     |> Map.put_new(:color_key, nil)
@@ -70,7 +87,7 @@ defmodule D3Ex.Components.BarChart do
     <div
       id={@id}
       phx-hook="D3BarChart"
-      data-items={encode_data(@data)}
+      data-items={encode_data(@initial_data)}
       data-config={encode_config(Map.merge(@config, %{
         x_key: @x_key,
         y_key: @y_key,

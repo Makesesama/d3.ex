@@ -20,14 +20,19 @@ defmodule D3Ex.Components.NetworkGraph do
 
       <.network_graph
         id="my-graph"
-        nodes={@nodes}
-        links={@links}
+        initial_nodes={@nodes}
+        initial_links={@links}
         selected={@selected_node_id}
         on_select="node_selected"
         on_position_save="positions_updated"
         width={800}
         height={600}
       />
+
+  `:initial_nodes` and `:initial_links` are consumed once at mount. Use
+  `D3Ex.Live.add_node/3`, `add_link/3`, `update_node/4`, `remove_node/3`,
+  `remove_link/4`, or `set_data/3` (with `%{nodes: ..., links: ...}`) to
+  stream subsequent updates.
 
   ## Node Format
 
@@ -89,14 +94,41 @@ defmodule D3Ex.Components.NetworkGraph do
 
   @impl true
   def prepare_assigns(assigns) do
-    # Ensure required fields exist
-    assigns
-    |> Map.put_new(:nodes, [])
-    |> Map.put_new(:links, [])
-    |> Map.put_new(:selected, nil)
-    |> Map.put_new(:on_select, nil)
-    |> Map.put_new(:on_position_save, nil)
-    |> Map.put_new(:on_link_click, nil)
+    cond do
+      Map.has_key?(assigns, :nodes) ->
+        raise ArgumentError, network_graph_rename_message(:nodes)
+
+      Map.has_key?(assigns, :links) ->
+        raise ArgumentError, network_graph_rename_message(:links)
+
+      true ->
+        assigns
+        |> Map.put_new(:initial_nodes, [])
+        |> Map.put_new(:initial_links, [])
+        |> Map.put_new(:selected, nil)
+        |> Map.put_new(:on_select, nil)
+        |> Map.put_new(:on_position_save, nil)
+        |> Map.put_new(:on_link_click, nil)
+    end
+  end
+
+  defp network_graph_rename_message(old) do
+    """
+    `:#{old}` is no longer accepted by D3Ex.Components.NetworkGraph. Rename
+    `:nodes` → `:initial_nodes` and `:links` → `:initial_links`, and route
+    updates through `D3Ex.Live`:
+
+        <.network_graph
+          id="graph"
+          initial_nodes={@nodes}
+          initial_links={@links}
+          ...
+        />
+
+        # Then, in your LiveView:
+        D3Ex.Live.add_node(socket, "graph", %{id: ..., label: ...})
+        D3Ex.Live.add_link(socket, "graph", %{source: ..., target: ...})
+    """
   end
 
   @impl true
@@ -105,8 +137,8 @@ defmodule D3Ex.Components.NetworkGraph do
     <div
       id={@id}
       phx-hook="D3NetworkGraph"
-      data-nodes={encode_data(@nodes)}
-      data-links={encode_data(@links)}
+      data-nodes={encode_data(@initial_nodes)}
+      data-links={encode_data(@initial_links)}
       data-config={encode_config(@config)}
       data-selected={@selected}
       phx-update="ignore"
@@ -131,25 +163,5 @@ defmodule D3Ex.Components.NetworkGraph do
       <% end %>
     </div>
     """
-  end
-
-  @doc """
-  Helper function to update graph data efficiently.
-
-  Instead of replacing all data, you can push incremental updates:
-
-      push_event(socket, "graph:add_node", %{
-        node: %{id: "new_node", label: "New"}
-      })
-
-      push_event(socket, "graph:remove_node", %{id: "node_to_remove"})
-
-      push_event(socket, "graph:update_node", %{
-        id: "existing_node",
-        changes: %{label: "Updated Label"}
-      })
-  """
-  def push_graph_update(socket, action, payload) do
-    Phoenix.LiveView.push_event(socket, "graph:#{action}", payload)
   end
 end

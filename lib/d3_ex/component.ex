@@ -105,7 +105,13 @@ defmodule D3Ex.Component do
   """
   @callback render(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
 
-  @optional_callbacks [default_config: 0]
+  @doc """
+  Normalizes assigns before render — applies defaults, validates required
+  props, etc.
+  """
+  @callback prepare_assigns(assigns :: map()) :: map()
+
+  @optional_callbacks [default_config: 0, prepare_assigns: 1]
 
   defmacro __using__(_opts) do
     quote do

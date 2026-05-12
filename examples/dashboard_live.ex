@@ -28,13 +28,23 @@ defmodule D3Ex.Examples.DashboardLive do
 
   @impl true
   def handle_info(:update_metrics, socket) do
-    # Simulate new data arriving
+    # Stream updates through D3Ex.Live — each chart receives a tiny WebSocket
+    # delta instead of a re-serialized full dataset. Assigns are NOT updated:
+    # the template's `data` prop is consumed once at mount and the hook owns
+    # subsequent client-side state.
     new_data_point = generate_metric_point()
+
+    new_metric_entries = [
+      %{timestamp: new_data_point.timestamp, value: new_data_point.cpu, metric: "cpu"},
+      %{timestamp: new_data_point.timestamp, value: new_data_point.memory, metric: "memory"}
+    ]
+
+    updated_sales = update_sales_data(socket.assigns.sales_data)
 
     {:noreply,
      socket
-     |> update(:time_series_data, &add_time_series_point(&1, new_data_point))
-     |> update(:sales_data, &update_sales_data/1)
+     |> D3Ex.Live.append("metrics-chart", new_metric_entries)
+     |> D3Ex.Live.set_data("sales-chart", updated_sales)
      |> push_event("metrics:updated", %{timestamp: DateTime.utc_now()})}
   end
 
@@ -109,7 +119,7 @@ defmodule D3Ex.Examples.DashboardLive do
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Monthly Sales</h2>
             <.bar_chart
               id="sales-chart"
-              data={@sales_data}
+              initial_data={@sales_data}
               x_key={:month}
               y_key={:sales}
               on_bar_click="bar_clicked"
@@ -124,7 +134,7 @@ defmodule D3Ex.Examples.DashboardLive do
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Real-time Metrics</h2>
             <.line_chart
               id="metrics-chart"
-              data={@time_series_data}
+              initial_data={@time_series_data}
               x_key={:timestamp}
               y_key={:value}
               series_key={:metric}
@@ -140,8 +150,8 @@ defmodule D3Ex.Examples.DashboardLive do
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Entity Relationships</h2>
             <.network_graph
               id="entity-graph"
-              nodes={@network_nodes}
-              links={@network_links}
+              initial_nodes={@network_nodes}
+              initial_links={@network_links}
               selected={@selected_node}
               on_select="node_selected"
               width={1000}

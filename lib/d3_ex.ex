@@ -38,11 +38,11 @@ defmodule D3Ex do
 
         def mount(_params, _session, socket) do
           {:ok, assign(socket,
-            nodes: [
+            initial_nodes: [
               %{id: "1", label: "Node 1"},
               %{id: "2", label: "Node 2"}
             ],
-            links: [
+            initial_links: [
               %{source: "1", target: "2"}
             ],
             selected_node: nil
@@ -52,17 +52,37 @@ defmodule D3Ex do
         def handle_event("node_selected", %{"id" => id}, socket) do
           {:noreply, assign(socket, selected_node: id)}
         end
+
+        # Stream updates without re-rendering the chart wrapper:
+        def handle_info({:new_node, node}, socket) do
+          {:noreply, D3Ex.Live.add_node(socket, "my-graph", node)}
+        end
       end
 
   In your template:
 
       <.network_graph
         id="my-graph"
-        nodes={@nodes}
-        links={@links}
+        initial_nodes={@initial_nodes}
+        initial_links={@initial_links}
         on_select="node_selected"
         selected={@selected_node}
       />
+
+  ## Streaming updates
+
+  Components consume their `initial_*` props once at mount. Use `D3Ex.Live`
+  to stream subsequent updates as tiny WebSocket deltas:
+
+  - `D3Ex.Live.set_data/3` — full replace
+  - `D3Ex.Live.append/3` — append items
+  - `D3Ex.Live.patch/3` — partial updates by identity key
+  - `D3Ex.Live.remove/3` — remove items
+  - `D3Ex.Live.add_node/3`, `remove_node/3`, `update_node/4`, `add_link/3`,
+    `remove_link/4` — network graph helpers
+
+  All events are scoped per element id, so multiple charts on the same page
+  do not cross-talk.
 
   ## Available Components
 

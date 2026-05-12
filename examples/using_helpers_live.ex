@@ -53,8 +53,8 @@ defmodule D3Ex.Examples.UsingHelpersLive do
 
         <.network_graph
           id="user-network"
-          nodes={@user_graph.nodes}
-          links={@user_graph.links}
+          initial_nodes={@user_graph.nodes}
+          initial_links={@user_graph.links}
           selected={@selected_node}
           on_select="node_selected"
           config={@network_config}
@@ -94,7 +94,7 @@ defmodule D3Ex.Examples.UsingHelpersLive do
 
         <.bar_chart
           id="top-categories"
-          data={@top_categories}
+          initial_data={@top_categories}
           x_key={:category}
           y_key={:sum_revenue}
           config={@bar_config}
@@ -133,7 +133,7 @@ defmodule D3Ex.Examples.UsingHelpersLive do
 
         <.line_chart
           id="sales-trends"
-          data={@sales_with_metrics}
+          initial_data={@sales_with_metrics}
           x_key={:month}
           y_key={:revenue}
           config={@line_config}

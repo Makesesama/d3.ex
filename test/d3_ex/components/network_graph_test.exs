@@ -2,17 +2,17 @@ defmodule D3Ex.Components.NetworkGraphTest do
   use ExUnit.Case, async: true
 
   import Phoenix.LiveViewTest
-  import D3Ex.Components.NetworkGraph
+  import D3Ex.Components.NetworkGraph, only: [component: 1]
 
   describe "network_graph component" do
     test "renders with minimal data" do
       assigns = %{
         id: "test-graph",
-        nodes: [%{id: "1", label: "Node 1"}],
-        links: []
+        initial_nodes: [%{id: "1", label: "Node 1"}],
+        initial_links: []
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
       assert result =~ "id=\"test-graph\""
       assert result =~ "phx-hook=\"D3NetworkGraph\""
@@ -21,33 +21,34 @@ defmodule D3Ex.Components.NetworkGraphTest do
     end
 
     test "renders with nodes and links" do
+      nodes = [
+        %{id: "1", label: "Alice"},
+        %{id: "2", label: "Bob"}
+      ]
+
       assigns = %{
         id: "graph",
-        nodes: [
-          %{id: "1", label: "Alice"},
-          %{id: "2", label: "Bob"}
-        ],
-        links: [
-          %{source: "1", target: "2"}
-        ]
+        initial_nodes: nodes,
+        initial_links: [%{source: "1", target: "2"}]
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
-      assert result =~ "Alice"
       assert result =~ "data-nodes="
-      assert result =~ Jason.encode!(assigns.nodes)
+
+      assert result =~
+               Jason.encode!(nodes) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
     end
 
     test "includes selected node" do
       assigns = %{
         id: "graph",
-        nodes: [%{id: "1", label: "Node"}],
-        links: [],
+        initial_nodes: [%{id: "1", label: "Node"}],
+        initial_links: [],
         selected: "1"
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
       assert result =~ "data-selected=\"1\""
     end
@@ -55,13 +56,13 @@ defmodule D3Ex.Components.NetworkGraphTest do
     test "includes event handlers" do
       assigns = %{
         id: "graph",
-        nodes: [],
-        links: [],
+        initial_nodes: [],
+        initial_links: [],
         on_select: "node_selected",
         on_position_save: "pos_saved"
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
       assert result =~ "name=\"on_select\""
       assert result =~ "value=\"node_selected\""
@@ -72,14 +73,14 @@ defmodule D3Ex.Components.NetworkGraphTest do
     test "applies custom configuration" do
       assigns = %{
         id: "graph",
-        nodes: [],
-        links: [],
+        initial_nodes: [],
+        initial_links: [],
         width: 1000,
         height: 800,
         charge_strength: -500
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
       assert result =~ "width: 1000px"
       assert result =~ "height: 800px"
@@ -90,13 +91,12 @@ defmodule D3Ex.Components.NetworkGraphTest do
     test "uses default configuration when not specified" do
       assigns = %{
         id: "graph",
-        nodes: [],
-        links: []
+        initial_nodes: [],
+        initial_links: []
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
-      # Should use defaults from default_config/0
       assert result =~ "width=\"800\""
       assert result =~ "height=\"600\""
     end
@@ -104,11 +104,11 @@ defmodule D3Ex.Components.NetworkGraphTest do
     test "includes phx-update ignore" do
       assigns = %{
         id: "graph",
-        nodes: [],
-        links: []
+        initial_nodes: [],
+        initial_links: []
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
       assert result =~ "phx-update=\"ignore\""
     end
@@ -116,28 +116,32 @@ defmodule D3Ex.Components.NetworkGraphTest do
     test "handles empty data gracefully" do
       assigns = %{
         id: "empty-graph",
-        nodes: [],
-        links: []
+        initial_nodes: [],
+        initial_links: []
       }
 
-      result = rendered_to_string(network_graph(assigns))
+      result = rendered_to_string(component(assigns))
 
       assert result =~ "data-nodes=\"[]\""
       assert result =~ "data-links=\"[]\""
     end
   end
 
-  describe "push_graph_update/3" do
-    setup do
-      # This would normally be a real socket in a LiveView test
-      socket = %{assigns: %{}}
-      %{socket: socket}
+  describe "deprecated props" do
+    test "raises with migration message when :nodes is passed" do
+      assigns = %{id: "g", nodes: [], initial_links: []}
+
+      assert_raise ArgumentError, ~r/:nodes.*Rename.*initial_nodes/s, fn ->
+        rendered_to_string(component(assigns))
+      end
     end
 
-    test "formats event name correctly", %{socket: socket} do
-      # We can't easily test push_event without a real LiveView context,
-      # but we can verify the function exists and has correct arity
-      assert function_exported?(D3Ex.Components.NetworkGraph, :push_graph_update, 3)
+    test "raises with migration message when :links is passed" do
+      assigns = %{id: "g", initial_nodes: [], links: []}
+
+      assert_raise ArgumentError, ~r/:links.*Rename.*initial_links/s, fn ->
+        rendered_to_string(component(assigns))
+      end
     end
   end
 end

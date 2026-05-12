@@ -80,6 +80,26 @@ export const D3Hook = {
   },
 
   /**
+   * Subscribe to id-scoped LiveView events for streaming data updates.
+   *
+   * Subscribes to `${this.el.id}:${op}` for each key in the `handlers` map.
+   * The hook receives only events targeted at its specific element id, so
+   * multiple charts on the same page do not cross-talk.
+   *
+   * Server side, emit these via `D3Ex.Live.set_data/3`, `append/3`,
+   * `patch/3`, `remove/3` (or the network-specific helpers).
+   *
+   * @param {object} handlers - Map of op name → handler function. Handlers
+   *   are called as methods on `this`, so they can read/mutate hook state.
+   */
+  bindDataEvents(handlers) {
+    const id = this.el.id;
+    for (const op of Object.keys(handlers)) {
+      this.handleEvent(`${id}:${op}`, (payload) => handlers[op].call(this, payload));
+    }
+  },
+
+  /**
    * Clean up resources
    */
   cleanup() {
@@ -111,26 +131,25 @@ export const D3NetworkGraph = {
 
     this.initGraph();
 
-    // Listen for incremental updates
-    this.handleEvent('graph:add_node', ({node}) => this.addNode(node));
-    this.handleEvent('graph:remove_node', ({id}) => this.removeNode(id));
-    this.handleEvent('graph:update_node', ({id, changes}) => this.updateNode(id, changes));
-    this.handleEvent('graph:add_link', ({link}) => this.addLink(link));
-    this.handleEvent('graph:remove_link', ({source, target}) => this.removeLink(source, target));
+    // Id-scoped streaming events (server-side: D3Ex.Live.*)
+    this.bindDataEvents({
+      set_data: ({data}) => {
+        this.nodes = data.nodes || [];
+        this.links = data.links || [];
+        this.updateGraph();
+      },
+      add_node: ({node}) => this.addNode(node),
+      remove_node: ({id}) => this.removeNode(id),
+      update_node: ({id, changes}) => this.updateNode(id, changes),
+      add_link: ({link}) => this.addLink(link),
+      remove_link: ({source, target}) => this.removeLink(source, target),
+    });
   },
 
   updated() {
-    // Handle data updates from server
-    const newNodes = this.getData();
-    const newLinks = this.getLinks();
+    // Data flows exclusively through D3Ex.Live id-scoped events after mount.
+    // Only the `data-selected` scalar still updates via attribute diff.
     const newSelected = this.getSelected();
-
-    if (JSON.stringify(newNodes) !== JSON.stringify(this.nodes) ||
-        JSON.stringify(newLinks) !== JSON.stringify(this.links)) {
-      this.nodes = newNodes;
-      this.links = newLinks;
-      this.updateGraph();
-    }
 
     if (newSelected !== this.selected) {
       this.selected = newSelected;
@@ -339,14 +358,34 @@ export const D3BarChart = {
     this.data = this.getData();
 
     this.initChart();
+
+    // Id-scoped streaming events (server-side: D3Ex.Live.*)
+    this.bindDataEvents({
+      set_data: ({data}) => { this.data = data; this.updateChart(); },
+      append: ({items}) => { this.data = this.data.concat(items); this.updateChart(); },
+      patch: ({changes}) => { this.applyPatch(changes); this.updateChart(); },
+      remove: ({ids}) => { this.applyRemove(ids); this.updateChart(); },
+    });
+  },
+
+  applyPatch(changes) {
+    const idKey = this.config.x_key;
+    for (const {key, changes: itemChanges} of changes) {
+      const item = this.data.find(d => d[idKey] === key);
+      if (item) Object.assign(item, itemChanges);
+    }
+  },
+
+  applyRemove(ids) {
+    const idKey = this.config.x_key;
+    const drop = new Set(ids);
+    this.data = this.data.filter(d => !drop.has(d[idKey]));
   },
 
   updated() {
-    const newData = this.getData();
-    if (JSON.stringify(newData) !== JSON.stringify(this.data)) {
-      this.data = newData;
-      this.updateChart();
-    }
+    // Data flows exclusively through D3Ex.Live id-scoped events after mount.
+    // Config and attribute changes are not currently mirrored — passing new
+    // config requires a remount today; revisit if a real use case appears.
   },
 
   destroyed() {
@@ -475,14 +514,32 @@ export const D3LineChart = {
     this.data = this.getData();
 
     this.initChart();
+
+    // Id-scoped streaming events (server-side: D3Ex.Live.*)
+    this.bindDataEvents({
+      set_data: ({data}) => { this.data = data; this.updateChart(); },
+      append: ({items}) => { this.data = this.data.concat(items); this.updateChart(); },
+      patch: ({changes}) => { this.applyPatch(changes); this.updateChart(); },
+      remove: ({ids}) => { this.applyRemove(ids); this.updateChart(); },
+    });
+  },
+
+  applyPatch(changes) {
+    const idKey = this.config.x_key;
+    for (const {key, changes: itemChanges} of changes) {
+      const item = this.data.find(d => d[idKey] === key);
+      if (item) Object.assign(item, itemChanges);
+    }
+  },
+
+  applyRemove(ids) {
+    const idKey = this.config.x_key;
+    const drop = new Set(ids);
+    this.data = this.data.filter(d => !drop.has(d[idKey]));
   },
 
   updated() {
-    const newData = this.getData();
-    if (JSON.stringify(newData) !== JSON.stringify(this.data)) {
-      this.data = newData;
-      this.updateChart();
-    }
+    // Data flows exclusively through D3Ex.Live id-scoped events after mount.
   },
 
   destroyed() {

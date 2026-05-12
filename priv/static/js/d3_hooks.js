@@ -44,26 +44,37 @@ export const D3Hook = {
   },
 
   /**
+   * Parse the `data-events` attribute into a `{slot → handler}` map.
+   *
+   * Slots are the names the hook uses internally (e.g. `'on_bar_click'`);
+   * handlers are the LiveView `handle_event` names supplied by the Elixir
+   * component (e.g. `'bar_clicked'`). Returns `{}` if the attribute is
+   * absent or empty so callers don't have to null-check.
+   */
+  getEvents() {
+    const attr = this.el.getAttribute('data-events');
+    return attr ? JSON.parse(attr) : {};
+  },
+
+  /**
    * Send event to LiveView server
    *
-   * @param {string} eventName - Name of the event handler (e.g., 'on_select')
+   * Looks up the LiveView handler name in `this.events` (populated by
+   * `createD3Hook` from the `data-events` attribute). Silently no-ops when
+   * the component didn't wire up that slot — interactions that fire on
+   * every drag/hover shouldn't spam the console.
+   *
+   * @param {string} eventName - Slot name on the component (e.g. 'on_select')
    * @param {object} payload - Event payload
    * @param {number} throttle - Optional throttle delay in ms
    */
   sendEvent(eventName, payload, throttle = 0) {
-    const eventInput = this.el.querySelector(`input[name="${eventName}"]`);
-    if (!eventInput) {
-      console.warn(`D3Ex: No input found for event "${eventName}"`);
-      return;
-    }
-
-    const eventHandler = eventInput.value;
-    if (!eventHandler) {
-      console.warn(`D3Ex: No event handler name set for "${eventName}"`);
-      return;
-    }
-
-    console.log(`D3Ex: Sending event "${eventHandler}" with payload:`, payload);
+    // Memoize on first send so legacy hooks that spread `...D3Hook` without
+    // going through `createD3Hook` still work — they get `this.events`
+    // populated lazily instead of in `mounted`.
+    const events = this.events || (this.events = this.getEvents());
+    const eventHandler = events[eventName];
+    if (!eventHandler) return;
 
     if (throttle > 0) {
       if (this.throttleTimers && this.throttleTimers[eventName]) {
@@ -116,8 +127,9 @@ export const D3Hook = {
  * Build a LiveView hook on top of the D3Ex lifecycle.
  *
  * Handles the boilerplate every D3 hook needs: D3 readiness check, config
- * parsing into `this.config`, id-scoped data event subscription, and cleanup
- * on destroy. Author supplies just the D3-specific callbacks.
+ * parsing into `this.config`, `data-events` parsing into `this.events` (used
+ * by `sendEvent`), id-scoped data event subscription, and cleanup on destroy.
+ * Author supplies just the D3-specific callbacks.
  *
  * Spread the result into your hook object and add component-specific methods
  * (initChart, renderChart, etc.) alongside it.
@@ -162,6 +174,7 @@ export const createD3Hook = ({ onMount, onUpdated, onDestroy, events } = {}) => 
     }
 
     this.config = this.getConfig();
+    this.events = this.getEvents();
     onMount?.call(this);
     if (events) this.bindDataEvents(events);
   },

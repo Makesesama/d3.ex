@@ -107,19 +107,15 @@ defmodule D3Ex.Components.LineChart do
         x_label: @x_label,
         y_label: @y_label
       }))}
+      data-events={encode_events(%{
+        on_point_click: @on_point_click,
+        on_line_hover: @on_line_hover
+      })}
       phx-update="ignore"
       class="d3-line-chart"
       style={"width: #{@config.width}px; height: #{@config.height}px;"}
     >
       <svg width={@config.width} height={@config.height}></svg>
-
-      <%= if @on_point_click do %>
-        <input type="hidden" name="on_point_click" value={@on_point_click} />
-      <% end %>
-
-      <%= if @on_line_hover do %>
-        <input type="hidden" name="on_line_hover" value={@on_line_hover} />
-      <% end %>
     </div>
     """
   end

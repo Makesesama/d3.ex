@@ -190,6 +190,25 @@ defmodule D3Ex.Component do
   end
 
   @doc """
+  Encodes an event-handler map to JSON for the `data-events` attribute.
+
+  Nil values are filtered out so unset handlers don't appear in the map.
+  The hook reads this once at mount and uses it to resolve `sendEvent`
+  calls to LiveView event names.
+
+      <div data-events={encode_events(%{
+        on_bar_click: @on_bar_click,
+        on_bar_hover: @on_bar_hover
+      })}>
+  """
+  def encode_events(events) do
+    events
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Map.new()
+    |> Jason.encode!()
+  end
+
+  @doc """
   Merges user-provided configuration with component defaults.
   """
   def merge_config(assigns, defaults) do

@@ -141,23 +141,16 @@ defmodule D3Ex.Components.NetworkGraph do
       data-links={encode_data(@initial_links)}
       data-config={encode_config(@config)}
       data-selected={@selected}
+      data-events={encode_events(%{
+        on_select: @on_select,
+        on_position_save: @on_position_save,
+        on_link_click: @on_link_click
+      })}
       phx-update="ignore"
       class="d3-network-graph"
       style={"width: #{@config.width}px; height: #{@config.height}px;"}
     >
       <svg width={@config.width} height={@config.height}></svg>
-
-      <%= if @on_select do %>
-        <input type="hidden" name="on_select" value={@on_select} />
-      <% end %>
-
-      <%= if @on_position_save do %>
-        <input type="hidden" name="on_position_save" value={@on_position_save} />
-      <% end %>
-
-      <%= if @on_link_click do %>
-        <input type="hidden" name="on_link_click" value={@on_link_click} />
-      <% end %>
     </div>
     """
   end

@@ -53,15 +53,12 @@ defmodule MyApp.D3Components.SunburstChart do
       phx-hook="D3SunburstChart"
       data-items={encode_data(@data)}
       data-config={encode_config(@config)}
+      data-events={encode_events(%{on_segment_click: @on_segment_click})}
       phx-update="ignore"
       class="d3-sunburst-chart"
       style={"width: #{@config.width}px; height: #{@config.height}px;"}
     >
       <svg width={@config.width} height={@config.height}></svg>
-
-      <%= if @on_segment_click do %>
-        <input type="hidden" name="on_segment_click" value={@on_segment_click} />
-      <% end %>
     </div>
     """
   end
@@ -394,18 +391,17 @@ mounted() {
 
 ### 4. Pushing Events Without Handlers
 
-Check if event handler exists before pushing:
+`sendEvent` silently no-ops when the component didn't wire up the slot in
+`data-events`, so it's safe to call unconditionally from a click/hover
+handler:
 
 ```javascript
-// Use the helper
 this.sendEvent('on_click', data);
-
-// Or check manually
-const handler = this.getEventHandler('on_click');
-if (handler) {
-  this.pushEvent(handler, data);
-}
 ```
+
+If you need direct access to the handler-name map (e.g. to switch on
+whether a slot is wired), use `this.events` (populated by
+`createD3Hook`) or call `this.getEvents()`.
 
 ## Example Gallery
 

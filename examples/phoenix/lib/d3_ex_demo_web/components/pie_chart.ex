@@ -43,15 +43,12 @@ defmodule D3ExDemoWeb.Components.PieChart do
         value_key: @value_key,
         label_key: @label_key
       }))}
+      data-events={encode_events(%{on_slice_click: @on_slice_click})}
       phx-update="ignore"
       class="d3-pie-chart"
       style={"width: #{@config.width}px; height: #{@config.height}px;"}
     >
       <svg width={@config.width} height={@config.height}></svg>
-
-      <%= if @on_slice_click do %>
-        <input type="hidden" name="on_slice_click" value={@on_slice_click} />
-      <% end %>
     </div>
     """
   end

@@ -4,6 +4,15 @@ defmodule D3Ex.Components.NetworkGraphTest do
   import Phoenix.LiveViewTest
   import D3Ex.Components.NetworkGraph, only: [component: 1]
 
+  defp extract_data_events(html) do
+    [_, escaped] = Regex.run(~r/data-events="([^"]*)"/, html)
+
+    escaped
+    |> String.replace("&quot;", "\"")
+    |> String.replace("&amp;", "&")
+    |> Jason.decode!()
+  end
+
   describe "network_graph component" do
     test "renders with minimal data" do
       assigns = %{
@@ -53,7 +62,7 @@ defmodule D3Ex.Components.NetworkGraphTest do
       assert result =~ "data-selected=\"1\""
     end
 
-    test "includes event handlers" do
+    test "includes event handlers in data-events" do
       assigns = %{
         id: "graph",
         initial_nodes: [],
@@ -64,10 +73,30 @@ defmodule D3Ex.Components.NetworkGraphTest do
 
       result = rendered_to_string(component(assigns))
 
-      assert result =~ "name=\"on_select\""
-      assert result =~ "value=\"node_selected\""
-      assert result =~ "name=\"on_position_save\""
-      assert result =~ "value=\"pos_saved\""
+      events = extract_data_events(result)
+      assert events == %{"on_select" => "node_selected", "on_position_save" => "pos_saved"}
+      refute result =~ "<input"
+    end
+
+    test "omits unset handlers from data-events" do
+      assigns = %{
+        id: "graph",
+        initial_nodes: [],
+        initial_links: [],
+        on_select: "node_selected"
+      }
+
+      result = rendered_to_string(component(assigns))
+
+      assert extract_data_events(result) == %{"on_select" => "node_selected"}
+    end
+
+    test "renders empty data-events when no handlers wired" do
+      assigns = %{id: "graph", initial_nodes: [], initial_links: []}
+
+      result = rendered_to_string(component(assigns))
+
+      assert extract_data_events(result) == %{}
     end
 
     test "applies custom configuration" do

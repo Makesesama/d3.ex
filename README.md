@@ -348,14 +348,11 @@ defmodule MyApp.D3Components.PieChart do
       phx-hook="D3PieChart"
       data-items={encode_data(@data)}
       data-config={encode_config(@config)}
+      data-events={encode_events(%{on_slice_click: @on_slice_click})}
       phx-update="ignore"
       class="d3-pie-chart"
     >
       <svg width={@config.width} height={@config.height}></svg>
-
-      <%= if @on_slice_click do %>
-        <input type="hidden" name="on_slice_click" value={@on_slice_click} />
-      <% end %>
     </div>
     """
   end
@@ -418,14 +415,15 @@ export const D3PieChart = {
 **What `createD3Hook` gives you:**
 
 - `mounted()` — checks for `window.d3`, parses `data-config` into
-  `this.config`, calls your `onMount`, then binds id-scoped events.
+  `this.config` and `data-events` into `this.events`, calls your
+  `onMount`, then binds id-scoped events.
 - `updated()` — calls your optional `onUpdated` (use for scalar
   `data-*` attribute diffs like selection; bulk data flows through
   `events`).
 - `destroyed()` — calls your optional `onDestroy`, then `this.cleanup()`
   (stops force simulations, clears throttle timers).
 - Helper methods from `D3Hook` (`getConfig`, `getData`, `getLinks`,
-  `getSelected`, `sendEvent`, `bindDataEvents`).
+  `getSelected`, `getEvents`, `sendEvent`, `bindDataEvents`).
 
 The `events` map subscribes to `${this.el.id}:${op}` so multiple charts
 on a page don't cross-talk. Server side, push with `D3Ex.Live.set_data/3`,

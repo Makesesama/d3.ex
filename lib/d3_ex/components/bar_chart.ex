@@ -95,19 +95,15 @@ defmodule D3Ex.Components.BarChart do
         x_label: @x_label,
         y_label: @y_label
       }))}
+      data-events={encode_events(%{
+        on_bar_click: @on_bar_click,
+        on_bar_hover: @on_bar_hover
+      })}
       phx-update="ignore"
       class="d3-bar-chart"
       style={"width: #{@config.width}px; height: #{@config.height}px;"}
     >
       <svg width={@config.width} height={@config.height}></svg>
-
-      <%= if @on_bar_click do %>
-        <input type="hidden" name="on_bar_click" value={@on_bar_click} />
-      <% end %>
-
-      <%= if @on_bar_hover do %>
-        <input type="hidden" name="on_bar_hover" value={@on_bar_hover} />
-      <% end %>
     </div>
     """
   end

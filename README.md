@@ -52,17 +52,18 @@ cd assets && npm install d3
 In your `assets/js/app.js`:
 
 ```javascript
-import { D3NetworkGraph, D3BarChart, D3LineChart } from "../../deps/d3_ex/priv/static/js/d3_hooks.js";
+import { D3NetworkGraph, D3BarChart, D3LineChart, D3Stream } from "../../deps/d3_ex/priv/static/js/d3_hooks.js";
 
 // Or if you copied the hooks to your assets:
-// import { D3NetworkGraph, D3BarChart, D3LineChart } from "./hooks/d3_hooks.js";
+// import { D3NetworkGraph, D3BarChart, D3LineChart, D3Stream } from "./hooks/d3_hooks.js";
 
 let liveSocket = new LiveSocket("/live", Socket, {
   params: {_csrf_token: csrfToken},
   hooks: {
     D3NetworkGraph,
     D3BarChart,
-    D3LineChart
+    D3LineChart,
+    D3Stream
   }
 });
 ```
@@ -241,6 +242,73 @@ Multi-line chart with tooltips and interactive points.
 - `show_points` - Show data points (default: true)
 - `show_area` - Fill area under lines (default: false)
 - `show_grid` - Show grid lines (default: true)
+
+### Streaming with Phoenix `stream/3`
+
+Bridges a Phoenix `LiveStream` directly into a D3 line chart. Unlike the
+other components — which take `:initial_data` plus deltas via `D3Ex.Live` —
+the stream chart consumes Phoenix's native stream protocol, so you manage
+data with the same `stream_insert/4`, `stream_delete/3`, and `stream/4` calls
+you'd use for a table.
+
+```elixir
+def mount(_params, _session, socket) do
+  if connected?(socket), do: :timer.send_interval(250, self(), :tick)
+
+  socket =
+    socket
+    |> stream_configure(:points, dom_id: &"pt-#{&1.t}")
+    |> stream(:points, [])
+
+  {:ok, socket}
+end
+
+def handle_info(:tick, socket) do
+  t = System.system_time(:millisecond)
+  point = %{t: t, y: :math.sin(t / 1000)}
+  # Negative limit keeps the LAST N items (rolling window).
+  # Positive limit keeps the FIRST N and would discard appends after the cap.
+  {:noreply, stream_insert(socket, :points, point, limit: -200)}
+end
+
+def render(assigns) do
+  ~H"""
+  <.stream_chart
+    id="ticks"
+    stream={@streams.points}
+    x_key={:t}
+    y_key={:y}
+    renderer="line"
+    width={700}
+    height={360}
+  />
+  """
+end
+```
+
+**Why use this:**
+- `stream_insert(..., limit: -N)` caps server-side memory to the last N
+  items — no growing assigns array, no hand-rolled ring buffer.
+- LiveView already defines what "the current dataset" is after a reconnect;
+  the stream chart inherits that for free.
+- Same vocabulary as `stream/3`-backed tables — no per-component delta API
+  to learn.
+
+**Options:**
+- `stream` - `Phoenix.LiveView.LiveStream` reference (required, e.g.
+  `@streams.points`)
+- `x_key`, `y_key` - Atom keys into each item (default: `:x`, `:y`)
+- `series_key` - Optional key for multi-line grouping
+- `renderer` - v1 supports `"line"` only
+- Plus the standard `width`/`height`/`margin`/`color_scheme`/`curve_type`/
+  `show_points`/`show_area`/`show_grid`/`animation_duration`/`point_radius`
+
+**v1 limitations:** numeric x/y only (`data-*` attributes are stringly;
+pass `System.system_time(:millisecond)` for timestamps), no event handlers
+yet, no scatter/area/bar renderers yet.
+
+Make sure `D3Stream` is in your hook registration (see "Import D3Ex Hooks"
+above).
 
 ## Building Custom Components
 

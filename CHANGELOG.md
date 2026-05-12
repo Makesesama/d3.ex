@@ -33,6 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   All events are scoped per element id.
 - `D3Hook.bindDataEvents(handlers)` JS helper for subscribing to the
   id-scoped event protocol from custom hooks.
+- **`D3Ex.Components.StreamChart`** — a Phoenix `stream/3` bridge. Renders a
+  hidden `phx-update="stream"` feed that the `D3Stream` hook observes via
+  `MutationObserver` and re-feeds into D3, instead of routing updates through
+  `D3Ex.Live`. Lets users bound server-side memory
+  (`stream_insert(socket, :points, p, limit: -N)`) and get LiveView's reconnect
+  semantics for free. v1 supports `renderer="line"` with numeric x/y values;
+  event handlers, time-axis support, and additional renderers will come in
+  follow-ups.
 
 ### Migration
 

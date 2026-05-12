@@ -23,14 +23,14 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/d3_ex_demo"
-import {D3NetworkGraph, D3BarChart, D3LineChart} from "../../../../priv/static/js/d3_hooks.js"
+import {D3NetworkGraph, D3BarChart, D3LineChart, D3Stream} from "../../../../priv/static/js/d3_hooks.js"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, D3NetworkGraph, D3BarChart, D3LineChart},
+  hooks: {...colocatedHooks, D3NetworkGraph, D3BarChart, D3LineChart, D3Stream},
 })
 
 // Show progress bar on live navigation and form submits

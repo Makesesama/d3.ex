@@ -71,6 +71,19 @@ defmodule D3ExDemoWeb.HomeLive do
             </p>
           </.link>
         </li>
+
+        <li>
+          <.link
+            navigate={~p"/stream"}
+            class="block rounded-lg border p-5 hover:bg-base-200 transition"
+          >
+            <div class="text-lg font-medium">Phoenix <code>stream/3</code> bridge</div>
+            <p class="text-sm text-base-content/70">
+              <code>stream_insert</code> with <code>limit: 200</code> — bounded
+              server memory, free reconnect, idiomatic Phoenix.
+            </p>
+          </.link>
+        </li>
       </ul>
     </div>
     """

@@ -11,10 +11,11 @@ It ships **no chart implementations**. There is no `BarChart` macro. No theme pr
 - `D3Ex.Component` — a Phoenix component behavior with helpers (`encode_data/1`, `encode_config/1`, `encode_events/1`, `merge_config/2`, `ensure_id/1`).
 - `D3Ex.Live` — four `push_event` helpers (`set_data/3`, `append/3`, `patch/3`, `remove/3`) that target an element by id so multiple charts on a page don't cross-talk.
 
-**JavaScript (`priv/static/js/d3_hooks.js`)** — ~150 LOC:
+**JavaScript (`priv/static/js/d3_hooks.js`)** — ~250 LOC:
 
 - `D3Hook` — a mixin: `getConfig`, `getData`, `getLinks`, `getSelected`, `getEvents`, `sendEvent`, `bindDataEvents`, `cleanup`.
-- `createD3Hook({ onMount, onUpdated, onDestroy, events })` — a factory that handles `mounted`/`updated`/`destroyed`, parses `data-config` and `data-events`, subscribes to id-scoped events, and runs cleanup. You write the D3.
+- `createD3Hook({ onMount, onUpdated, onDestroy, events })` — a factory for `D3Ex.Live`-driven charts. Handles `mounted`/`updated`/`destroyed`, parses `data-config` and `data-events`, subscribes to id-scoped events, runs cleanup. You write the D3.
+- `createStreamD3Hook({ onMount, onUpdate, parseRow, onDestroy, events })` — same shape, for charts driven by Phoenix `stream/3`. Adds a MutationObserver on the hidden `[data-stream-feed]` child and keeps `this.data` in sync.
 
 That's it. Everything else is up to you.
 
@@ -198,9 +199,24 @@ events: {
 
 ## Phoenix `stream/3` instead of `D3Ex.Live`
 
-For high-frequency feeds (live metrics, ticks), Phoenix's `stream/3` is a great fit: server memory is bounded by `limit:`, and LiveView already defines what "the current dataset" is after a reconnect. Render a hidden `phx-update="stream"` feed of `<div data-x="..." data-y="...">` nodes inside your component, then use a `MutationObserver` in the hook to re-feed D3.
+For high-frequency feeds (live metrics, ticks), Phoenix's `stream/3` is a great fit: server memory is bounded by `limit:`, and LiveView already defines what "the current dataset" is after a reconnect. Render a hidden `phx-update="stream"` feed of `<div data-x="..." data-y="...">` nodes inside your component; in the hook, use `createStreamD3Hook` and the MutationObserver wiring is taken care of:
 
-See `examples/phoenix/lib/d3_ex_demo_web/components/charts/stream_chart.ex` and the matching `assets/js/hooks/stream_chart.js` for a complete working pattern.
+```js
+import { createStreamD3Hook } from "../../deps/d3_ex/priv/static/js/d3_hooks.js"
+
+export const MyStreamChart = {
+  ...createStreamD3Hook({
+    onMount()  { this.initChart() },      // this.data already populated
+    onUpdate() { this.renderChart() },    // this.data refreshed on every stream change
+  }),
+  initChart()   { /* ... */ },
+  renderChart() { /* reads this.data */ },
+}
+```
+
+The default row parser reads `data-x`/`data-y`/`data-series` and coerces x/y via `Number()`. For non-numeric data, pass a custom `parseRow(node)` to `createStreamD3Hook`.
+
+See `examples/phoenix/lib/d3_ex_demo_web/components/charts/stream_chart.ex` and the matching `assets/js/hooks/stream_chart.js` for the full picture (Elixir-side template + JS-side hook).
 
 ## Examples
 
@@ -279,6 +295,22 @@ this.cleanup()        // stops simulations, clears throttle timers
 ```
 
 `this.config`, `this.events` are populated for you in `mounted()` before `onMount` runs.
+
+### `createStreamD3Hook(opts)` (JS)
+
+```js
+{
+  onMount(),       // required — initialize; `this.data` already populated
+  onUpdate(),      // optional — called after each stream flush; `this.data` refreshed
+  parseRow(node),  // optional — override per-row parsing; `this` is the hook
+  onDestroy(),     // optional — extra teardown
+  events: { ... }, // optional — mix in `D3Ex.Live` push_event ops alongside the stream
+}
+```
+
+In addition to `this.config` and `this.events`, `this.data` is populated by parsing every `[data-stream-item]` inside the hook's `[data-stream-feed]` before `onMount` runs. A MutationObserver on the feed refreshes `this.data` (microtask-batched so a burst of `stream_insert` calls coalesces into one `onUpdate`).
+
+The default `parseRow` reads `data-x`/`data-y`/`data-series` and coerces x/y via `Number()`, keyed by `config.x_key`/`y_key`/`series_key`. Override to read different attributes or skip coercion.
 
 ## Reconnect notes
 

@@ -8,7 +8,7 @@
  * the bridge primitives; this file is what an app developer would write.
  */
 
-import { createD3Hook } from "../../../../priv/static/js/d3_hooks.js";
+import { createD3Hook } from "../../../../../priv/static/js/d3_hooks.js";
 
 export const D3LineChart = {
   ...createD3Hook({

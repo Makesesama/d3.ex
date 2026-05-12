@@ -1,16 +1,23 @@
 /**
  * D3Ex — D3.js × Phoenix LiveView bridge primitives.
  *
- * Two exports:
+ * Three exports:
  *
- *   - `D3Hook`         A mixin of helpers (getConfig, getData, sendEvent,
- *                      bindDataEvents, cleanup) that you can spread into a
- *                      hook object you write by hand.
+ *   - `D3Hook`              Mixin of helpers (getConfig, getData, sendEvent,
+ *                           bindDataEvents, cleanup) you can spread into a
+ *                           hook object you write by hand.
  *
- *   - `createD3Hook`   A factory that bundles the lifecycle (mounted /
- *                      updated / destroyed), config + events parsing, and
- *                      id-scoped event subscription so you only write the
- *                      D3-specific parts.
+ *   - `createD3Hook`        Factory for `D3Ex.Live`-driven charts. Bundles
+ *                           the lifecycle (mounted / updated / destroyed),
+ *                           config + events parsing, and id-scoped event
+ *                           subscription so you only write the D3-specific
+ *                           parts.
+ *
+ *   - `createStreamD3Hook`  Factory for charts driven by Phoenix `stream/3`.
+ *                           Adds a MutationObserver on the hidden
+ *                           `[data-stream-feed]` child, re-parses on every
+ *                           mutation, and calls `onUpdate` so D3 stays in
+ *                           sync with `stream_insert`/`stream_delete`.
  *
  * The library ships no chart implementations. See `examples/phoenix` for
  * sample hooks (bar/line/network/stream) built on these primitives.
@@ -179,4 +186,141 @@ export const createD3Hook = ({ onMount, onUpdated, onDestroy, events } = {}) => 
   },
 });
 
-export default { D3Hook, createD3Hook };
+/**
+ * Default row parser for `createStreamD3Hook`.
+ *
+ * Reads `data-x`, `data-y`, and (if `config.series_key` is set) `data-series`
+ * from a `<div data-stream-item>` node. Numeric coercion via `Number()` because
+ * `data-*` attributes are strings. Output is keyed by `config.x_key`,
+ * `config.y_key`, `config.series_key` (falling back to `'x'`/`'y'`).
+ *
+ * Override via the `parseRow` option to read different attributes, skip
+ * coercion, or handle non-numeric data.
+ */
+function defaultParseRow(node) {
+  const { x_key, y_key, series_key } = this.config;
+  const item = {
+    [x_key || 'x']: Number(node.dataset.x),
+    [y_key || 'y']: Number(node.dataset.y),
+  };
+  if (series_key && node.dataset.series !== undefined && node.dataset.series !== '') {
+    item[series_key] = node.dataset.series;
+  }
+  return item;
+}
+
+/**
+ * Factory that builds a stream-driven LiveView hook on top of D3Ex.
+ *
+ * Same shape as `createD3Hook` (config/events parsing, id-scoped event
+ * subscription, cleanup on destroy) plus the wiring for Phoenix `stream/3`:
+ *
+ *   - Finds a hidden `[data-stream-feed]` child of the hook element.
+ *   - Reads `[data-stream-item]` nodes inside it into `this.data` via
+ *     `parseRow`.
+ *   - Watches the feed with a MutationObserver. Mutations within a single
+ *     frame coalesce into one microtask-batched flush, then `this.data` is
+ *     refreshed and `onUpdate` is called.
+ *
+ * The Elixir component is expected to render something like:
+ *
+ *   <div id={@id} phx-hook="MyStreamChart" data-config={...}>
+ *     <svg>...</svg>
+ *     <div phx-update="stream" data-stream-feed style="display:none">
+ *       <div :for={{dom_id, item} <- @stream}
+ *            id={dom_id} data-stream-item
+ *            data-x={item.x} data-y={item.y} />
+ *     </div>
+ *   </div>
+ *
+ * `this.data` is populated before `onMount` runs, so the initial chart
+ * render can read it directly. `D3Ex.Live` push_event ops (set_data, etc.)
+ * can still be mixed in via the `events:` option.
+ *
+ * @param {object}   opts
+ * @param {function} opts.onMount     Required. Initialize the chart;
+ *                                    `this.data` is already populated.
+ * @param {function} [opts.onUpdate]  Called after each stream flush, with
+ *                                    `this.data` refreshed. Typically calls
+ *                                    `this.renderChart()`.
+ * @param {function} [opts.parseRow]  Override per-row parsing. Receives a
+ *                                    `[data-stream-item]` node; `this` is
+ *                                    the hook. Default: `defaultParseRow`.
+ * @param {function} [opts.onDestroy] Extra teardown. The observer is
+ *                                    disconnected and `this.cleanup()` runs
+ *                                    automatically afterwards.
+ * @param {object}   [opts.events]    Map of op → handler, as in
+ *                                    `createD3Hook`.
+ *
+ * @example
+ *   export const D3Stream = {
+ *     ...createStreamD3Hook({
+ *       onMount()  { this.initChart() },     // this.data already populated
+ *       onUpdate() { this.renderChart() },   // this.data refreshed
+ *     }),
+ *     initChart()   { ... },
+ *     renderChart() { ... },
+ *   };
+ */
+export const createStreamD3Hook = ({
+  onMount,
+  onUpdate,
+  parseRow,
+  onDestroy,
+  events,
+} = {}) => ({
+  ...D3Hook,
+
+  mounted() {
+    if (!window.d3) {
+      console.error('D3.js is not loaded. Please include D3.js in your application.');
+      return;
+    }
+
+    this.config = this.getConfig();
+    this.events = this.getEvents();
+    this.parseRow = parseRow || defaultParseRow;
+    this.data = this.readFeed();
+
+    onMount?.call(this);
+    if (events) this.bindDataEvents(events);
+
+    this.pendingFlush = false;
+    this.observer = new MutationObserver(() => this.scheduleFlush());
+    const feed = this.el.querySelector('[data-stream-feed]');
+    if (feed) {
+      this.observer.observe(feed, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      });
+    }
+  },
+
+  destroyed() {
+    if (this.observer) this.observer.disconnect();
+    onDestroy?.call(this);
+    this.cleanup();
+  },
+
+  readFeed() {
+    const nodes = this.el.querySelectorAll('[data-stream-item]');
+    const out = new Array(nodes.length);
+    for (let i = 0; i < nodes.length; i++) {
+      out[i] = this.parseRow(nodes[i]);
+    }
+    return out;
+  },
+
+  scheduleFlush() {
+    if (this.pendingFlush) return;
+    this.pendingFlush = true;
+    queueMicrotask(() => {
+      this.pendingFlush = false;
+      this.data = this.readFeed();
+      onUpdate?.call(this);
+    });
+  },
+});
+
+export default { D3Hook, createD3Hook, createStreamD3Hook };

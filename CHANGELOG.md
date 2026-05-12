@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **`createStreamD3Hook`** (JS) — a sibling to `createD3Hook` for charts driven
+  by Phoenix `stream/3`. Wires the MutationObserver on `[data-stream-feed]`,
+  parses `[data-stream-item]` nodes into `this.data`, and calls `onUpdate` on
+  every flush. Same shape as `createD3Hook` (`onMount` / `onDestroy` /
+  `events`) plus `onUpdate` and `parseRow`. The stream example hook drops
+  from ~75 lines to ~5 lines of factory wiring.
+
+### Fixed
+
+- Import path in `examples/phoenix/assets/js/hooks/{bar,line,network_graph,
+  stream}_chart.js` (was 4 levels up, should be 5) — the example app's
+  esbuild build now succeeds.
+
 ## [0.2.0] — focused core
 
 D3Ex is now a bridge, not a chart library. The baked-in chart components,

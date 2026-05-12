@@ -1,72 +1,29 @@
 /**
  * D3 Stream hook — example component for the demo app.
  *
- * Bridges Phoenix `stream/3` to a D3 line chart. The Elixir component renders
- * a hidden `<div phx-update="stream">` feed of `<div data-stream-item>` nodes;
- * this hook watches the feed via MutationObserver and re-renders D3 whenever
- * Phoenix mutates the list (insert / delete / reset).
+ * Bridges Phoenix `stream/3` to a D3 line chart via `createStreamD3Hook`,
+ * which handles the MutationObserver wiring on `[data-stream-feed]`. The
+ * Elixir component renders a hidden `<div phx-update="stream">` feed of
+ * `<div data-stream-item>` nodes; this hook just defines what to do when
+ * `this.data` changes.
  *
  * Server-side memory is bounded by `stream_insert(socket, :points, p, limit:
  * N)`; reconnect semantics come from Phoenix's stream protocol.
  *
- * Numeric x/y only (data-* attributes are strings, coerced via `Number()`).
+ * Numeric x/y only — the default `parseRow` coerces `data-x`/`data-y` via
+ * `Number()`. For non-numeric data, pass a custom `parseRow` to
+ * `createStreamD3Hook`.
  *
- * Pairs with `D3ExDemoWeb.Components.Charts.StreamChart`. Built on
- * `createD3Hook` from the D3Ex library.
+ * Pairs with `D3ExDemoWeb.Components.Charts.StreamChart`.
  */
 
-import { createD3Hook } from "../../../../priv/static/js/d3_hooks.js";
+import { createStreamD3Hook } from "../../../../../priv/static/js/d3_hooks.js";
 
 export const D3Stream = {
-  ...createD3Hook({
-    onMount() {
-      this.data = this.readFeed();
-      this.initChart();
-
-      this.pendingFlush = false;
-      this.observer = new MutationObserver(() => this.scheduleFlush());
-      const feed = this.el.querySelector('[data-stream-feed]');
-      if (feed) {
-        this.observer.observe(feed, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['data-x', 'data-y', 'data-series'],
-        });
-      }
-    },
-    onDestroy() {
-      if (this.observer) this.observer.disconnect();
-    },
+  ...createStreamD3Hook({
+    onMount()  { this.initChart() },
+    onUpdate() { this.renderChart() },
   }),
-
-  readFeed() {
-    const { x_key, y_key, series_key } = this.config;
-    const nodes = this.el.querySelectorAll('[data-stream-item]');
-    const out = new Array(nodes.length);
-    for (let i = 0; i < nodes.length; i++) {
-      const n = nodes[i];
-      const item = {
-        [x_key]: Number(n.dataset.x),
-        [y_key]: Number(n.dataset.y),
-      };
-      if (series_key && n.dataset.series !== undefined && n.dataset.series !== '') {
-        item[series_key] = n.dataset.series;
-      }
-      out[i] = item;
-    }
-    return out;
-  },
-
-  scheduleFlush() {
-    if (this.pendingFlush) return;
-    this.pendingFlush = true;
-    queueMicrotask(() => {
-      this.pendingFlush = false;
-      this.data = this.readFeed();
-      this.renderChart();
-    });
-  },
 
   initChart() {
     const d3 = window.d3;

@@ -99,6 +99,8 @@
                 pkgs.beamPackages.elixir-ls
                 pkgs.gemini-cli
 
+                pkgs.tailwindcss_4
+
               ]
               ++ opts;
               shellHook = ''

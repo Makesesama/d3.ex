@@ -40,3 +40,8 @@ d3_ex-*.tar
 .env
 .env.local
 *.beam
+
+*.nix-mix
+*.nix-hex
+.direnv
+.pre-commit-config.yaml

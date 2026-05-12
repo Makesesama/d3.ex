@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every flush. Same shape as `createD3Hook` (`onMount` / `onDestroy` /
   `events`) plus `onUpdate` and `parseRow`. The stream example hook drops
   from ~75 lines to ~5 lines of factory wiring.
+- **`D3Ex.JSONEncoder`** — pluggable JSON encoder behaviour. The library no
+  longer depends on Jason; by default it uses Elixir's stdlib `JSON` module
+  via `D3Ex.JSONEncoder.Default`. Configure a different encoder (Jason,
+  Poison, custom) with `config :d3_ex, :json_encoder, Jason` — any module
+  exposing `encode!/1` works.
+
+### Changed (breaking)
+
+- **Elixir requirement bumped to `~> 1.18`** (was `~> 1.14`) — needed for the
+  stdlib `JSON` module used by the default encoder. Users on older Elixir
+  versions can pin `d3_ex ~> 0.2.0`.
+- **`:jason` dependency removed.** `encode_data/1`, `encode_config/1`, and
+  `encode_events/1` now go through `D3Ex.JSONEncoder.encode!/1`. Behavior is
+  unchanged for callers; to keep using Jason explicitly, set
+  `config :d3_ex, :json_encoder, Jason` (and add `:jason` to your own deps).
 
 ### Fixed
 

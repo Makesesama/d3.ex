@@ -247,9 +247,14 @@ use D3Ex.Component
 Helpers in scope after `use`:
 
 - `ensure_id(assigns)` — generates `"d3ex-#{integer}"` if `:id` is unset
-- `encode_data(term)` — `Jason.encode!/1`
-- `encode_config(term)` — `Jason.encode!/1`
+- `encode_data(term)` — JSON-encode via `D3Ex.JSONEncoder` (stdlib `JSON` by default)
+- `encode_config(term)` — JSON-encode via `D3Ex.JSONEncoder`
 - `encode_events(%{slot => handler_or_nil})` — drops nils, JSON-encodes
+
+The encoder is swappable. To use Jason or Poison instead of the stdlib `JSON`
+default, set `config :d3_ex, :json_encoder, Jason` — any module exposing
+`encode!/1` works. See `D3Ex.JSONEncoder` for a typed behaviour you can
+implement for custom encoders.
 - `merge_config(assigns, defaults)` — merges defaults + `:config` + top-level keys
 
 After `use`, the module defines:

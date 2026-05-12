@@ -120,7 +120,7 @@ defmodule D3Ex.ComponentTest do
       data = [%{a: 1}, %{b: 2}]
       result = D3Ex.Component.encode_data(data)
 
-      assert result == Jason.encode!(data)
+      assert JSON.decode!(result) == [%{"a" => 1}, %{"b" => 2}]
     end
 
     test "encodes empty list" do

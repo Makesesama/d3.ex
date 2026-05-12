@@ -70,10 +70,13 @@ defmodule D3Ex.Component do
   After `use D3Ex.Component`:
 
     * `ensure_id/1`        — generate a DOM id if not provided
-    * `encode_data/1`      — `Jason.encode!/1`
-    * `encode_config/1`    — `Jason.encode!/1`
+    * `encode_data/1`      — JSON-encode via `D3Ex.JSONEncoder`
+    * `encode_config/1`    — JSON-encode via `D3Ex.JSONEncoder`
     * `encode_events/1`    — encodes a `%{slot => handler_name}` map, dropping nils
     * `merge_config/2`     — merges defaults + caller config + top-level keys
+
+  The encoder defaults to stdlib `JSON` and is swappable via
+  `config :d3_ex, :json_encoder, ...`. See `D3Ex.JSONEncoder`.
   """
 
   @doc "Default configuration map for the component."
@@ -140,10 +143,10 @@ defmodule D3Ex.Component do
   end
 
   @doc "JSON-encode data for a `data-*` attribute."
-  def encode_data(data), do: Jason.encode!(data)
+  def encode_data(data), do: D3Ex.JSONEncoder.encode!(data)
 
   @doc "JSON-encode config for a `data-*` attribute."
-  def encode_config(config), do: Jason.encode!(config)
+  def encode_config(config), do: D3Ex.JSONEncoder.encode!(config)
 
   @doc """
   Encode a `%{slot => handler_name}` map for `data-events`, dropping nil
@@ -159,7 +162,7 @@ defmodule D3Ex.Component do
     events
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
-    |> Jason.encode!()
+    |> D3Ex.JSONEncoder.encode!()
   end
 
   @doc """

@@ -140,6 +140,29 @@ defmodule D3Ex.Component do
       def prepare_assigns(assigns), do: assigns
 
       defoverridable default_config: 0, prepare_assigns: 1
+
+      @before_compile D3Ex.Component
+    end
+  end
+
+  @doc false
+  defmacro __before_compile__(env) do
+    name =
+      env.module
+      |> Module.split()
+      |> List.last()
+      |> Macro.underscore()
+      |> String.to_atom()
+
+    # Expose <.bar_chart>, <.line_chart>, <.network_graph>, ... by also
+    # defining a function named after the module's last segment. Lets
+    # `import D3Ex.Components.BarChart` work the way the README documents.
+    quote do
+      @doc """
+      Convenience alias for `component/1` matching the module's name.
+      Lets you write `<.#{unquote(name)} ... />` after importing the module.
+      """
+      def unquote(name)(assigns), do: component(assigns)
     end
   end
 
